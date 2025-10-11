@@ -1153,9 +1153,12 @@ function LandlordDashboard() {
                   <option value="">Select estate</option>
                   {estates.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                 </select>
+                <input placeholder="Filter by number" value={payAptSearch} onChange={e=>setPayAptSearch(e.target.value)} disabled={!payEstateId} />
                 <select value={payAptId} onChange={e=>setPayAptId(e.target.value)} disabled={!payEstateId}>
                   <option value="">Select apartment</option>
-                  {payApts.map(a => <option key={a.id} value={a.id}>{a.number || a.id}</option>)}
+                  {payApts
+                    .filter(a => payAptSearch ? String(a.number||'').toLowerCase().includes(payAptSearch.toLowerCase()) : true)
+                    .map(a => <option key={a.id} value={a.id}>{a.number || a.id}</option>)}
                 </select>
                 <button className="btn" onClick={loadPayments}>Load Payments</button>
               </div>
@@ -1360,38 +1363,36 @@ function Home() {
   return (
     <div className="hero">
       <section className="section">
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <h2 style={{ margin: 0 }}>All-in-one rental management</h2>
-            <p className="subtitle">Collect rent, resolve repairs, and keep everyone in the loop — fast and simple.</p>
-            {!token ? (
-              <div style={{ display:'flex', gap:8, marginTop:8 }}>
-                <Link className="btn" to="/signin">Sign In</Link>
-                <Link className="btn classic" to="/register">Create Account</Link>
-              </div>
-            ) : (
-              <div style={{ display:'flex', gap:8, marginTop:8 }}>
-                <Link className="btn" to={role==='tenant' ? '/tenant' : '/landlord'}>Open Dashboard</Link>
-              </div>
-            )}
-          </div>
+        <div className="hero-card">
+          <h2 style={{ margin: 0 }}>All-in-one rental management</h2>
+          <p className="subtitle">Collect rent, resolve repairs, and keep everyone in the loop — fast and simple.</p>
+          {!token ? (
+            <div className="cta">
+              <Link className="btn" to="/signin">Sign In</Link>
+              <Link className="btn classic" to="/register">Create Account</Link>
+            </div>
+          ) : (
+            <div className="cta">
+              <Link className="btn" to={role==='tenant' ? '/tenant' : '/landlord'}>Open Dashboard</Link>
+            </div>
+          )}
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:16, marginTop:16 }}>
-          <div className="feature">
+          <div className="feature animated">
             <div className="icon" aria-hidden>
               <svg viewBox="0 0 24 24" fill="none"><path d="M3 7h18M3 12h18M3 17h18" stroke="#5bc0be" strokeWidth="1.5"/></svg>
             </div>
             <h3>Collect rent faster</h3>
             <p>Track payments and export reports in one place.</p>
           </div>
-          <div className="feature">
+          <div className="feature animated" style={{ animationDelay:'0.2s' }}>
             <div className="icon" aria-hidden>
               <svg viewBox="0 0 24 24" fill="none"><path d="M7 7h10v10H7z" stroke="#5bc0be" strokeWidth="1.5"/><path d="M9 12h6" stroke="#5bc0be" strokeWidth="1.5"/></svg>
             </div>
             <h3>Fix issues quickly</h3>
             <p>Tickets move from open to done with clear updates.</p>
           </div>
-          <div className="feature">
+          <div className="feature animated" style={{ animationDelay:'0.4s' }}>
             <div className="icon" aria-hidden>
               <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#5bc0be" strokeWidth="1.5"/><path d="M12 7v5l3 3" stroke="#5bc0be" strokeWidth="1.5"/></svg>
             </div>

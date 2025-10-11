@@ -55,6 +55,7 @@ label{font-size:.9rem;opacity:.9}
 /* landing hero */
 .hero{display:flex;align-items:center;justify-content:center;min-height:60vh;background:linear-gradient(135deg,#0b1020,#151b3b)}
 .hero-content{text-align:center;max-width:720px;padding:24px}
+.hero-card{max-width:760px;margin:0 auto;text-align:center;padding:20px 24px;border:1px solid var(--border);border-radius:14px;background:linear-gradient(180deg, rgba(255,255,255,.02), transparent), var(--panel);box-shadow:0 30px 80px -40px rgba(2,6,23,.85), inset 0 1px 0 rgba(255,255,255,.03)}
 .hero .subtitle{opacity:.9;margin-top:8px}
 .cta{margin-top:16px;display:flex;gap:12px;justify-content:center}
 .btn-primary{background:linear-gradient(135deg,var(--accent),#6d28d9);color:#f8fafc}
@@ -100,6 +101,8 @@ label{font-size:.9rem;opacity:.9}
 .section-title{text-align:center;margin:0 0 16px 0}
 .features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
 .feature{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 8px 24px -18px rgba(2,6,23,.8)}
+.feature.animated{opacity:0;animation:fadePop 2.8s ease-in-out infinite;animation-delay:0s}
+@keyframes fadePop{0%{opacity:0;transform:translateY(8px)}10%{opacity:1;transform:none}45%{opacity:1}55%{opacity:.2}65%{opacity:1}90%{opacity:1}100%{opacity:0;transform:translateY(-8px)}}
 .icon{width:32px;height:32px;margin-bottom:8px}
 .demo-placeholder{height:220px;border-radius:16px;background:linear-gradient(135deg,rgba(139,92,246,.25),rgba(34,211,238,.25));border:1px dashed rgba(255,255,255,.2)}
 .testimonials{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}

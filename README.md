@@ -87,6 +87,28 @@ This safely deletes:
 
 Note: Real data will not be touched unless it matches the sample patterns above.
 
+## Continuous Integration (CI)
+This repo includes a GitHub Actions workflow at `.github/workflows/ci.yml` that:
+- Checks out code, sets up Node 20
+- Installs backend and frontend dependencies
+- Builds the frontend
+
+CI runs on pushes and PRs to `main`.
+
+## Deploy to Render
+This repo includes a `render.yaml` with two services:
+- Node Web Service for the backend (rootDir: `backend`, start: `node index.js`)
+- Static Site for the frontend (rootDir: `frontend`, publish: `build`)
+
+Steps:
+1) Create a new Render Blueprint from this repo (Render Dashboard → New + → Blueprint).
+2) Set the environment variables on the backend service:
+	- PORT (Render sets this; the file defaults to 10000 but Render overrides automatically)
+	- MYSQL_HOST, MYSQL_PORT, MYSQL_DB, MYSQL_USER, MYSQL_PASSWORD
+	- JWT_SECRET, FRONTEND_URL
+3) For the frontend static site, set `REACT_APP_API_BASE` if your API is hosted at a different domain.
+4) Deploy. On successful deploy, update `FRONTEND_URL` in the backend to match the frontend domain for password reset links.
+
 ## Next Steps
 - Implement authentication
 - Build dashboards for tenant and landlord
