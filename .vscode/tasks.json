@@ -1,0 +1,27 @@
+{
+  // VS Code tasks to start backend and frontend
+  "$schema": "vscode://schemas/tasks",
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start Backend (cwd: backend)",
+      "type": "shell",
+      "command": "npm run start",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Frontend (cwd: frontend)",
+      "type": "shell",
+      "command": "npm start",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "group": "build",
+      "problemMatcher": []
+    }
+  ]
+}

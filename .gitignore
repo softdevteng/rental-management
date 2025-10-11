@@ -1,0 +1,24 @@
+# Node
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env
+backend/.env
+frontend/.env
+
+# Build outputs
+frontend/build/
+.dist/
+.cache/
+
+# Uploads (consider excluding in production backups)
+backend/uploads/
+
+# OS files
+.DS_Store
+Thumbs.db
