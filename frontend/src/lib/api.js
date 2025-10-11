@@ -2,9 +2,11 @@ export const API_URL = '';
 
 export async function api(path, { method = 'GET', body, token, isMultipart } = {}) {
   const headers = {};
+const BASE = process.env.REACT_APP_API_BASE || '';
   if (!isMultipart) headers['Content-Type'] = 'application/json';
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${API_URL}${path}`, {
+  const url = BASE ? (path.startsWith('http') ? path : `${BASE}${path}`) : path;
+  const res = await fetch(url, {
     method,
     headers,
     body: body ? (isMultipart ? body : JSON.stringify(body)) : undefined,
