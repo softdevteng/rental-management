@@ -102,8 +102,12 @@ label{font-size:.9rem;opacity:.9}
 .section-title{text-align:center;margin:0 0 16px 0}
 .features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
 .feature{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 8px 24px -18px rgba(2,6,23,.8)}
-.feature.animated{opacity:0;animation:fadePop 2.8s ease-in-out infinite;animation-delay:0s}
-@keyframes fadePop{0%{opacity:0;transform:translateY(8px)}10%{opacity:1;transform:none}45%{opacity:1}55%{opacity:.2}65%{opacity:1}90%{opacity:1}100%{opacity:0;transform:translateY(-8px)}}
+.feature.animated{opacity:0;transform:translateY(14px)}
+.feature.animated-in{animation:riseIn .7s ease forwards}
+.feature.animated-in.delay1{animation-delay:.12s}
+.feature.animated-in.delay2{animation-delay:.24s}
+.feature.animated-in.delay3{animation-delay:.36s}
+@keyframes riseIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 .icon{width:32px;height:32px;margin-bottom:8px}
 .demo-placeholder{height:220px;border-radius:16px;background:linear-gradient(135deg,rgba(139,92,246,.25),rgba(34,211,238,.25));border:1px dashed rgba(255,255,255,.2)}
 .testimonials{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
