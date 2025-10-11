@@ -1384,15 +1384,10 @@ function Home() {
               <>
                 <Link className="btn" to="/signin">Sign In</Link>
                 <Link className="btn classic" to="/register">Create Account</Link>
-                <Link className="btn" to="/tenant">Tenant Portal</Link>
-                <Link className="btn" to="/landlord">Landlord Portal</Link>
               </>
             ) : (
               <>
-                <Link className="btn" to={role==='tenant' ? '/tenant' : '/landlord'}>Open Dashboard</Link>
-                <Link className="btn classic" to={role==='tenant' ? '/tenant' : '/landlord'} state={{ openProfile:true }}>Profile</Link>
-                <Link className="btn" to="/tenant">Tenant Portal</Link>
-                <Link className="btn" to="/landlord">Landlord Portal</Link>
+                <Link className="btn" to={role==='tenant' ? '/tenant' : '/landlord'}>Go to Dashboard</Link>
               </>
             )}
           </div>

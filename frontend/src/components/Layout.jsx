@@ -37,7 +37,16 @@ export default function Layout({ children }) {
   return (
     <div className="container">
       <header className="header">
-        <h1 className="brand">Rental Manager</h1>
+        <h1 className="brand" style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <span aria-hidden style={{ display:'inline-flex' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 11l9-7 9 7" stroke="var(--accent)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M5 10v9a1 1 0 001 1h12a1 1 0 001-1v-9" stroke="var(--accent-2)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M9 20v-6h6v6" stroke="var(--accent)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+          Rental Manager
+        </h1>
         <nav className="nav" style={{ display:'flex', alignItems:'center', gap:12 }}>
           <Link to="/">Home</Link>
           {token && role === 'tenant' && <Link to="/tenant">Tenant</Link>}
