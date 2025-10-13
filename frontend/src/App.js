@@ -1373,6 +1373,17 @@ function Home() {
     }, 100);
     return () => clearTimeout(t);
   }, []);
+  const onCtaClick = (e) => {
+    try {
+      const el = e.currentTarget;
+      el.classList.remove('btn-click');
+      // Force reflow to restart animation
+      // eslint-disable-next-line no-unused-expressions
+      el.offsetWidth;
+      el.classList.add('btn-click');
+      setTimeout(() => el.classList.remove('btn-click'), 320);
+    } catch {}
+  };
   return (
     <div className="hero">
       <section className="section">
@@ -1382,12 +1393,12 @@ function Home() {
           <div className="cta">
             {!token ? (
               <>
-                <Link className="btn" to="/signin">Sign In</Link>
-                <Link className="btn classic" to="/register">Create Account</Link>
+                <Link className="btn" to="/signin" onClick={onCtaClick}>Sign In</Link>
+                <Link className="btn classic" to="/register" onClick={onCtaClick}>Create Account</Link>
               </>
             ) : (
               <>
-                <Link className="btn" to={role==='tenant' ? '/tenant' : '/landlord'}>Go to Dashboard</Link>
+                <Link className="btn" to={role==='tenant' ? '/tenant' : '/landlord'} onClick={onCtaClick}>Go to Dashboard</Link>
               </>
             )}
           </div>
