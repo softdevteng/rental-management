@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { api } from '../lib/api';
 import './styles.css';
+import './route.css';
 
 export default function Layout({ children }) {
   const { token, role, logout } = useAuth();

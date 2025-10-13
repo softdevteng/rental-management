@@ -44,6 +44,11 @@ body{
 .btn:hover{box-shadow:0 10px 24px -12px rgba(16,185,129,.65)}
 .btn:active{transform:translateY(1px)}
 .btn.classic{background:#e2e8f0;color:#0b132b;border:1px solid #cbd5e1;box-shadow:none}
+.btn:not(.classic){position:relative;overflow:hidden}
+.btn:not(.classic)::after{content:'';position:absolute;left:50%;top:50%;width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,.35);transform:translate(-50%,-50%) scale(0);opacity:.9;transition:transform .3s ease, opacity .4s ease;pointer-events:none}
+:root[data-theme='light'] .btn:not(.classic)::after{background:rgba(2,6,23,.15)}
+.btn:not(.classic):active{transform:scale(.98)}
+.btn:not(.classic):active::after{transform:translate(-50%,-50%) scale(24);opacity:0}
 .profile-chip{display:flex;align-items:center;gap:8px;padding:4px 8px;border:1px solid rgba(255,255,255,.12);border-radius:999px;background:rgba(255,255,255,.04)}
 :root[data-theme='light'] .profile-chip{border-color:rgba(2,6,23,.08);background:rgba(2,6,23,.03)}
 .avatar-mini{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--accent),var(--accent-2));font-size:.75rem;color:#04121d;font-weight:700}

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { api } from './lib/api';
 import { AuthProvider, useAuth } from './lib/auth';
 import Layout from './components/Layout';
@@ -1659,20 +1659,27 @@ export default function App() {
         <AuthWatch />
         <BrowserRouter>
           <Layout>
-            <div className="route-fade">
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/signin" element={<SignIn />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/tenant" element={<RequireAuth role="tenant"><div><TenantDashboard /></div></RequireAuth>} />
-                <Route path="/landlord" element={<RequireAuth role={['landlord','caretaker']}><div><LandlordDashboard /></div></RequireAuth>} />
-              </Routes>
-            </div>
+            <AnimatedRoutes />
           </Layout>
         </BrowserRouter>
       </ToastProvider>
     </AuthProvider>
+  );
+}
+
+function AnimatedRoutes() {
+  const location = useLocation();
+  return (
+    <div key={location.pathname} className="route-fade">
+      <Routes location={location}>
+        <Route path="/" element={<Home />} />
+        <Route path="/signin" element={<SignIn />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/tenant" element={<RequireAuth role="tenant"><div><TenantDashboard /></div></RequireAuth>} />
+        <Route path="/landlord" element={<RequireAuth role={['landlord','caretaker']}><div><LandlordDashboard /></div></RequireAuth>} />
+      </Routes>
+    </div>
   );
 }
