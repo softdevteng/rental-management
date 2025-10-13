@@ -671,7 +671,6 @@ function LandlordDashboard() {
           <button className={`side-item ${activeTab==='notices'?'active':''}`} onClick={()=>setActiveTab('notices')}>Notices</button>
           <button className={`side-item ${activeTab==='tickets'?'active':''}`} onClick={()=>setActiveTab('tickets')}>Tickets</button>
           <button className={`side-item ${activeTab==='post'?'active':''}`} onClick={()=>setActiveTab('post')}>Post Notice</button>
-          <button className={`side-item ${activeTab==='estate'?'active':''}`} onClick={()=>setActiveTab('estate')}>Create Estate</button>
           <button className={`side-item ${activeTab==='estate'?'active':''}`} onClick={()=>setActiveTab('estate')}>Add Estate</button>
           <button className={`side-item ${activeTab==='add-apartment'?'active':''}`} onClick={()=>setActiveTab('add-apartment')}>Add Apartment</button>
           <button className={`side-item ${activeTab==='assign-tenant'?'active':''}`} onClick={()=>setActiveTab('assign-tenant')}>Assign Tenant</button>
@@ -1660,15 +1659,17 @@ export default function App() {
         <AuthWatch />
         <BrowserRouter>
           <Layout>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/signin" element={<SignIn />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/tenant" element={<RequireAuth role="tenant"><div><TenantDashboard /></div></RequireAuth>} />
-              <Route path="/landlord" element={<RequireAuth role={['landlord','caretaker']}><div><LandlordDashboard /></div></RequireAuth>} />
-            </Routes>
+            <div className="route-fade">
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/signin" element={<SignIn />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/tenant" element={<RequireAuth role="tenant"><div><TenantDashboard /></div></RequireAuth>} />
+                <Route path="/landlord" element={<RequireAuth role={['landlord','caretaker']}><div><LandlordDashboard /></div></RequireAuth>} />
+              </Routes>
+            </div>
           </Layout>
         </BrowserRouter>
       </ToastProvider>

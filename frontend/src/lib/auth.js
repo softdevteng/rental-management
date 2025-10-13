@@ -4,7 +4,10 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem('token'));
-  const [role, setRole] = useState(() => localStorage.getItem('role'));
+  const [role, setRole] = useState(() => {
+    const r = localStorage.getItem('role');
+    return r ? String(r).toLowerCase() : null;
+  });
   const [listeners, setListeners] = useState([]);
 
   useEffect(() => {
@@ -12,7 +15,7 @@ export function AuthProvider({ children }) {
     if (role) localStorage.setItem('role', role); else localStorage.removeItem('role');
   }, [token, role]);
 
-  const login = (t, r) => { setToken(t); setRole(r); };
+  const login = (t, r) => { setToken(t); setRole(r ? String(r).toLowerCase() : null); };
   const logout = () => { setToken(null); setRole(null); };
 
   // allow components to subscribe to auth errors like 401
