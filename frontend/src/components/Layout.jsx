@@ -38,8 +38,11 @@ export default function Layout({ children }) {
         setTheme(saved);
         document.documentElement.setAttribute('data-theme', saved);
       } else {
-        // default: dark
-        document.documentElement.setAttribute('data-theme', 'dark');
+        // No saved theme: respect OS preference
+        const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+        const initial = prefersLight ? 'light' : 'dark';
+        setTheme(initial);
+        document.documentElement.setAttribute('data-theme', initial);
       }
     } catch {}
   }, []);
