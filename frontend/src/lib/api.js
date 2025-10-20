@@ -13,6 +13,14 @@ const BASE = process.env.REACT_APP_API_BASE || '';
   });
   if (res.status === 401) {
     // bubble up a uniform 401 error for global handling
+    try {
+      // Notify app-level listeners only if this was an authenticated call
+      if (token && typeof window !== 'undefined') {
+        const ev = new CustomEvent('api:unauthorized', { detail: { path, method } });
+        // Dispatch asynchronously to avoid interfering with current call stack
+        setTimeout(() => window.dispatchEvent(ev), 0);
+      }
+    } catch {}
     const data = await safeJson(res);
     const err = new Error(data?.error || 'Unauthorized');
     err.status = 401;

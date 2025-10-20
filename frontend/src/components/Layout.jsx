@@ -76,8 +76,9 @@ export default function Layout({ children }) {
         </h1>
         <nav className="nav" style={{ display:'flex', alignItems:'center', gap:12 }}>
           <Link to="/">Home</Link>
-          {token && role === 'tenant' && <Link to="/tenant">Tenant</Link>}
-          {token && (role === 'landlord' || role === 'caretaker') && <Link to="/landlord">Manage</Link>}
+          {token && (
+            <Link to={role==='tenant'? '/tenant' : role==='landlord'? '/landlord' : '/caretaker'}>Dashboard</Link>
+          )}
           <button aria-label={theme==='dark'? 'Switch to light mode':'Switch to dark mode'} title={theme==='dark'? 'Switch to light mode':'Switch to dark mode'} className="btn classic" onClick={toggleTheme} style={{ padding:'6px 10px' }}>
             {theme === 'dark' ? (
               // Sun icon for switching to light mode
@@ -103,6 +104,7 @@ export default function Layout({ children }) {
                   <div className="avatar-mini">{initials || 'U'}</div>
                 )}
                 <span className="profile-name">{displayName}</span>
+                <span className="badge info" style={{ marginLeft:6, textTransform:'capitalize' }}>{role}</span>
               </Link>
               <button className="btn" onClick={confirmAndLogout}>Logout</button>
             </>

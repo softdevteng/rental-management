@@ -23,10 +23,12 @@ function createApp() {
   app.use('/api/tenants', require('./routes/tenants'));
   app.use('/api/landlords', require('./routes/landlords'));
   app.use('/api/payments', require('./routes/payments'));
+  app.use('/api/reports', require('./routes/reports'));
   app.use('/api/tickets', require('./routes/tickets'));
   app.use('/api/notices', require('./routes/notices'));
   app.use('/api/uploads', require('./routes/uploads'));
   app.use('/api/public', require('./routes/public'));
+  app.use('/api/admin', require('./routes/admin'));
   if (process.env.ENABLE_DEV_ROUTES === 'true') {
     app.use('/api/dev', require('./routes/dev'));
   }

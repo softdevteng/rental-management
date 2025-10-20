@@ -4,14 +4,14 @@ import { api } from './lib/api';
 import { AuthProvider, useAuth } from './lib/auth';
 import Layout from './components/Layout';
 
-// Simple Toast system
+// Simple Toast system (with optional action button)
 const ToastContext = React.createContext(null);
 function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
-  const add = (msg, type = 'info') => {
+  const add = (msg, type = 'info', action) => {
     const id = Date.now() + Math.random();
-    setToasts(t => [...t, { id, msg, type }]);
-    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3000);
+    setToasts(t => [...t, { id, msg, type, action }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
   };
   const api = useMemo(() => ({ add }), []);
   return (
@@ -19,7 +19,14 @@ function ToastProvider({ children }) {
       {children}
       <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 9999 }}>
         {toasts.map(t => (
-          <div key={t.id} style={{ marginBottom: 8, padding: '8px 12px', borderRadius: 6, color: '#fff', background: t.type==='error'?'#e11d48': t.type==='success'?'#16a34a':'#2563eb' }}>{t.msg}</div>
+          <div key={t.id} style={{ display:'flex', alignItems:'center', gap:8, marginBottom: 8, padding: '8px 12px', borderRadius: 6, color: '#fff', background: t.type==='error'?'#e11d48': t.type==='success'?'#16a34a':'#2563eb' }}>
+            <span style={{ lineHeight:1.2 }}>{t.msg}</span>
+            {t.action && (
+              <button onClick={t.action.onClick} className="btn classic" style={{ padding:'4px 8px', height:26 }}>
+                {t.action.label || 'Action'}
+              </button>
+            )}
+          </div>
         ))}
       </div>
     </ToastContext.Provider>
@@ -157,6 +164,48 @@ function TenantDashboard() {
       </aside>
       <section className="content">
   <h2 className="section-title compact">Welcome, {me?.name || 'Tenant'}</h2>
+        {/* Overview */}
+        <div className="grid" style={{ marginBottom:12 }}>
+          <div className="card card-appear">
+            <h3>Rent status</h3>
+            <div className="gauge">
+              {(() => { const total = payments.length||1; const paid = payments.filter(p=>p.status==='paid').length; const pct = Math.round((paid/total)*100); const r=28; const c=2*Math.PI*r; const off = c*(1-pct/100); return (
+                <svg viewBox="0 0 80 80"><circle className="ring" cx="40" cy="40" r="28" fill="none" strokeWidth="8"/><circle className="meter" cx="40" cy="40" r="28" fill="none" strokeWidth="8" strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round"/></svg>
+              ); })()}
+              <div><div className="muted">Paid</div><div className="val"><strong>{payments.filter(p=>p.status==='paid').length}</strong> / {payments.length||0}</div></div>
+            </div>
+          </div>
+          <div className="card card-appear">
+            <h3>Tickets trend</h3>
+            <svg className="spark" viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M0 30 L20 18 L40 22 L60 14 L80 20 L100 12"/></svg>
+            <div className="muted">Last 6 cycles</div>
+          </div>
+          <div className="card card-appear">
+            <h3>Next steps</h3>
+            <div className="muted">Raise a ticket or pay rent online via M-Pesa.</div>
+          </div>
+        </div>
+        {/* Recent Activity */}
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="card-header">
+            <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M3 7h18M3 12h12M3 17h8" stroke="#5bc0be" strokeWidth="1.5"/></svg>
+            <h3 className="card-title">Recent Activity</h3>
+          </div>
+          <div className="grid" style={{ gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))' }}>
+            <div>
+              <div className="muted">Last notice</div>
+              {(() => { const ns = Array.isArray(notices)? [...notices] : []; ns.sort((a,b)=> new Date(b.createdAt||0)-new Date(a.createdAt||0)); const n = ns[0]; return n ? (<div><strong>{n.title}</strong><div className="muted">{n.createdAt? new Date(n.createdAt).toLocaleDateString():''}</div></div>) : (<div className="muted">—</div>); })()}
+            </div>
+            <div>
+              <div className="muted">Last payment</div>
+              {(() => { const ps = Array.isArray(payments)? [...payments] : []; ps.sort((a,b)=> new Date(b.date||0)-new Date(a.date||0)); const p = ps[0]; return p ? (<div><strong>KSh {Number(p.amount||0).toLocaleString()}</strong><div className="muted">{p.status} · {p.date? new Date(p.date).toLocaleDateString():''}</div></div>) : (<div className="muted">—</div>); })()}
+            </div>
+            <div>
+              <div className="muted">Last ticket</div>
+              {(() => { const ts = Array.isArray(tickets)? [...tickets] : []; ts.sort((a,b)=> new Date(b.createdAt||0)-new Date(a.createdAt||0)); const t = ts[0]; return t ? (<div><strong>{t.status}</strong><div className="muted">{t.createdAt? new Date(t.createdAt).toLocaleDateString():''}</div></div>) : (<div className="muted">—</div>); })()}
+            </div>
+          </div>
+        </div>
         {activeTab==='notices' && (
           <>
             <div className="kpis">
@@ -164,7 +213,7 @@ function TenantDashboard() {
               <div className="kpi"><div className="kpi-label">Payments paid</div><div className="kpi-value">{scopedKPIs.paid}</div></div>
               <div className="kpi"><div className="kpi-label">Open tickets</div><div className="kpi-value">{scopedKPIs.openTickets}</div></div>
             </div>
-            <div className="card">
+            <div className="card card-appear">
               <div className="card-header" style={{ justifyContent:'space-between' }}>
                 <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M6 10h12M8 14h8" stroke="#5bc0be" strokeWidth="1.5"/></svg>
                 <h3 className="card-title" style={{ marginRight:'auto' }}>Notice Board</h3>
@@ -183,7 +232,7 @@ function TenantDashboard() {
           </>
         )}
         {activeTab==='payments' && (
-          <div className="card">
+          <div className="card card-appear">
             <div className="card-header">
               <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M3 7h18M3 12h18M3 17h18" stroke="#5bc0be" strokeWidth="1.5"/></svg>
               <h3 className="card-title">Payment History</h3>
@@ -210,7 +259,7 @@ function TenantDashboard() {
           </div>
         )}
         {activeTab==='tickets' && (
-            <div className="card">
+            <div className="card card-appear">
               <div className="card-header">
                 <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M7 7h10v10H7z" stroke="#5bc0be" strokeWidth="1.5"/><path d="M9 12h6" stroke="#5bc0be" strokeWidth="1.5"/></svg>
                 <h3 className="card-title">My Tickets</h3>
@@ -248,7 +297,7 @@ function TenantDashboard() {
             </div>
           )}
         {activeTab==='raise' && (
-          <div className="card">
+          <div className="card card-appear">
             <div className="card-header">
               <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M12 3v18M3 12h18" stroke="#5bc0be" strokeWidth="1.5"/></svg>
               <h3 className="card-title">Raise Repair Ticket</h3>
@@ -261,7 +310,7 @@ function TenantDashboard() {
           </div>
         )}
         {activeTab==='vacate' && (
-          <div className="card">
+          <div className="card card-appear">
             <div className="card-header">
               <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M6 7h12v10H6z" stroke="#5bc0be" strokeWidth="1.5"/><path d="M6 10h12" stroke="#5bc0be" strokeWidth="1.5"/></svg>
               <h3 className="card-title">Vacate Notice</h3>
@@ -282,7 +331,7 @@ function TenantDashboard() {
         )}
         {activeTab==='profile' && (
           <>
-            <div className="card">
+            <div className="card card-appear">
               <div className="card-header">
                 <svg className="icon" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3" stroke="#5bc0be" strokeWidth="1.5"/><path d="M4 20a8 8 0 0116 0" stroke="#5bc0be" strokeWidth="1.5"/></svg>
                 <h3 className="card-title">My Profile</h3>
@@ -436,6 +485,7 @@ function LandlordDashboard() {
   const [assignTenantApts, setAssignTenantApts] = React.useState([]);
   const [assignTenantId, setAssignTenantId] = React.useState('');
   const [assignAptSearch, setAssignAptSearch] = React.useState('');
+  const [report, setReport] = React.useState(null);
 
   React.useEffect(() => {
     (async () => {
@@ -462,6 +512,10 @@ function LandlordDashboard() {
         try {
           const ns = await api('/api/landlords/notices', { token });
           setLandlordNotices(ns);
+        } catch {}
+        try {
+          const r = await api('/api/reports/summary', { token });
+          setReport(r);
         } catch {}
       } catch {}
     })();
@@ -692,6 +746,8 @@ function LandlordDashboard() {
             )}
           <button className={`side-item ${activeTab==='reminders'?'active':''}`} onClick={()=>setActiveTab('reminders')}>Rent Reminders</button>
           <button className={`side-item ${activeTab==='payments'?'active':''}`} onClick={()=>setActiveTab('payments')}>Rent Payments</button>
+          <button className={`side-item ${activeTab==='reports'?'active':''}`} onClick={()=>setActiveTab('reports')}>Reports</button>
+          <button className={`side-item ${activeTab==='system'?'active':''}`} onClick={()=>setActiveTab('system')}>System</button>
         </div>
       </aside>
       <section className="content">
@@ -827,6 +883,23 @@ function LandlordDashboard() {
       </div>
       {/* Edit button removed as requested */}
     </div>
+          {/* Recent Activity */}
+          <div className="card" style={{ margin:'12px 0' }}>
+            <div className="card-header">
+              <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M3 7h18M3 12h12M3 17h8" stroke="#5bc0be" strokeWidth="1.5"/></svg>
+              <h3 className="card-title">Recent Activity</h3>
+            </div>
+            <div className="grid" style={{ gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))' }}>
+              <div>
+                <div className="muted">Last notice</div>
+                {(() => { const ns = Array.isArray(landlordNotices)? [...landlordNotices] : []; ns.sort((a,b)=> new Date(b.createdAt||0)-new Date(a.createdAt||0)); const n = ns[0]; return n ? (<div><strong>{n.title}</strong><div className="muted">{n.createdAt? new Date(n.createdAt).toLocaleDateString():''}</div></div>) : (<div className="muted">—</div>); })()}
+              </div>
+              <div>
+                <div className="muted">Last ticket</div>
+                {(() => { const ts = Array.isArray(tickets)? [...tickets] : []; ts.sort((a,b)=> new Date(b.createdAt||0)-new Date(a.createdAt||0)); const t = ts[0]; return t ? (<div><strong>{t.status}</strong><div className="muted">{t.createdAt? new Date(t.createdAt).toLocaleDateString():''}</div></div>) : (<div className="muted">—</div>); })()}
+              </div>
+            </div>
+          </div>
   </div>
         {activeTab==='notices' && (
           <>
@@ -835,7 +908,7 @@ function LandlordDashboard() {
               <div className="kpi"><div className="kpi-label">In Progress</div><div className="kpi-value badge info">{landlordKPIs.inProgress}</div></div>
               <div className="kpi"><div className="kpi-label">Closed</div><div className="kpi-value badge ok">{landlordKPIs.closed}</div></div>
             </div>
-            <div className="card">
+            <div className="card card-appear">
               <div className="card-header">
                 <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M6 10h12M8 14h8" stroke="#5bc0be" strokeWidth="1.5"/></svg>
                 <h3 className="card-title">Notices</h3>
@@ -853,7 +926,7 @@ function LandlordDashboard() {
           </>
         )}
         {activeTab==='tenants' && role==='landlord' && (
-          <div className="card">
+          <div className="card card-appear">
             <div className="card-header">
               <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M4 7h16v10H4z" stroke="#5bc0be" strokeWidth="1.5"/><path d="M8 12h8" stroke="#5bc0be" strokeWidth="1.5"/></svg>
               <h3 className="card-title">Tenants</h3>
@@ -917,6 +990,69 @@ function LandlordDashboard() {
                 )}
               </>
             )}
+          </div>
+        )}
+        {activeTab==='reports' && (
+          <div className="card">
+            <div className="card-header">
+              <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4z" stroke="#5bc0be" strokeWidth="1.5"/><path d="M8 14l2-2 3 3 3-4" stroke="#5bc0be" strokeWidth="1.5"/></svg>
+              <h3 className="card-title">Reports</h3>
+            </div>
+            {!report ? <div className="muted">Loading…</div> : (
+              <div className="grid">
+                <div className="card">
+                  <h3>Occupancy</h3>
+                  <div>Total units: <strong>{report.occupancy.total}</strong></div>
+                  <div>Occupied: <strong>{report.occupancy.occupied}</strong></div>
+                  <div>Vacant: <strong>{report.occupancy.vacant}</strong></div>
+                </div>
+                <div className="card">
+                  <h3>Revenue</h3>
+                  <div>Collected: <strong>KSh {Number(report.revenue.collected||0).toLocaleString()}</strong></div>
+                  <div>Pending: <strong>KSh {Number(report.revenue.pending||0).toLocaleString()}</strong></div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {activeTab==='system' && role==='landlord' && (
+          <div className="card">
+            <div className="card-header">
+              <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M4 7h16v10H4z" stroke="#5bc0be" strokeWidth="1.5"/><path d="M12 7v6" stroke="#5bc0be" strokeWidth="1.5"/></svg>
+              <h3 className="card-title">System Settings</h3>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12 }}>
+              <div className="card">
+                <h3>Backup</h3>
+                <p className="muted">Download a JSON export of your data.</p>
+                <button className="btn" onClick={async ()=>{
+                  try {
+                    const res = await fetch((process.env.REACT_APP_API_BASE||'') + '/api/admin/backup', { headers:{ Authorization: `Bearer ${token}` } });
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href = url; a.download = 'rms-backup.json'; a.click(); URL.revokeObjectURL(url);
+                  } catch (err) { alert(err.message); }
+                }}>Download Backup</button>
+              </div>
+              <div className="card">
+                <h3>Restore</h3>
+                <p className="muted">Replace your data with a JSON backup. This cannot be undone.</p>
+                <label className="btn classic" style={{ width:'fit-content' }}>
+                  Upload JSON
+                  <input type="file" accept="application/json" style={{ display:'none' }} onChange={async (e)=>{
+                    const file = e.target.files && e.target.files[0]; if (!file) return;
+                    try {
+                      const text = await file.text();
+                      const body = JSON.parse(text);
+                      const res = await fetch((process.env.REACT_APP_API_BASE||'') + '/api/admin/restore?confirm=true', { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` }, body: JSON.stringify(body) });
+                      if (!res.ok) { const msg = await res.text(); throw new Error(msg || 'Restore failed'); }
+                      alert('Restore complete');
+                    } catch (err) { alert(err.message); }
+                    e.target.value='';
+                  }} />
+                </label>
+              </div>
+            </div>
           </div>
         )}
         {activeTab==='tickets' && (
@@ -1229,6 +1365,216 @@ function LandlordDashboard() {
   );
 }
 
+function CaretakerDashboard() {
+  const { token } = useAuth();
+  const toast = useToast();
+  const [me, setMe] = React.useState(null);
+  const [tickets, setTickets] = React.useState([]);
+  const [notices, setNotices] = React.useState([]);
+  const [activeTab, setActiveTab] = React.useState('tickets');
+  const [kpis, setKpis] = React.useState({ open:0, inProgress:0, closed:0 });
+  const [title, setTitle] = React.useState('');
+  const [message, setMessage] = React.useState('');
+  const [report, setReport] = React.useState(null);
+  const [recTenant, setRecTenant] = React.useState('');
+  const [recApartment, setRecApartment] = React.useState('');
+  const [recAmount, setRecAmount] = React.useState('');
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const profile = await api('/api/landlords/caretakers/me', { token });
+        setMe(profile);
+      } catch {}
+      try {
+        const list = await api('/api/landlords/tickets', { token });
+        setTickets(list);
+        const open = list.filter(t=>t.status==='open').length;
+        const inProgress = list.filter(t=>t.status==='in-progress').length;
+        const closed = list.filter(t=>t.status==='closed').length;
+        setKpis({ open, inProgress, closed });
+      } catch {}
+      try {
+        const ns = await api('/api/landlords/notices', { token });
+        setNotices(ns);
+      } catch {}
+      try {
+        const r = await api('/api/reports/summary', { token });
+        setReport(r);
+      } catch {}
+    })();
+  }, [token]);
+
+  const updateTicket = async (id, status) => {
+    try {
+      const updated = await api(`/api/landlords/tickets/${id}/status`, { method:'PUT', token, body:{ status } });
+      setTickets(ts => ts.map(t => t.id === id ? updated : t));
+      toast.add('Ticket updated', 'success');
+    } catch (err) { toast.add(err.message, 'error'); }
+  };
+
+  const postNotice = async (e) => {
+    e.preventDefault();
+    try {
+      if (!me?.estateId && !me?.Estate?.id) throw new Error('No assigned estate');
+      if (!title.trim()) throw new Error('Title is required');
+      if (!message.trim()) throw new Error('Message is required');
+      const estate = me?.Estate?.id || me?.estateId;
+      const created = await api('/api/landlords/notices', { method:'POST', token, body:{ title, message, estate } });
+      setNotices(prev => [created, ...(Array.isArray(prev)? prev:[])]);
+      setTitle(''); setMessage('');
+      toast.add('Notice posted', 'success');
+    } catch (err) { toast.add(err.message, 'error'); }
+  };
+
+  return (
+    <div className="dashboard">
+      <aside className="sidebar">
+        <div className="sidebar-section">
+          <div className="sidebar-title">Caretaker</div>
+          <button className={`side-item ${activeTab==='profile'?'active':''}`} onClick={()=>setActiveTab('profile')}>Profile</button>
+          <button className={`side-item ${activeTab==='tickets'?'active':''}`} onClick={()=>setActiveTab('tickets')}>Tickets</button>
+          <button className={`side-item ${activeTab==='post'?'active':''}`} onClick={()=>setActiveTab('post')}>Post Notice</button>
+          <button className={`side-item ${activeTab==='notices'?'active':''}`} onClick={()=>setActiveTab('notices')}>Notices</button>
+          <button className={`side-item ${activeTab==='record'?'active':''}`} onClick={()=>setActiveTab('record')}>Record Payment</button>
+          <button className={`side-item ${activeTab==='reports'?'active':''}`} onClick={()=>setActiveTab('reports')}>Reports</button>
+        </div>
+      </aside>
+      <section className="content">
+        <h2 className="section-title compact">Welcome, {me?.name || 'Caretaker'}</h2>
+        <div className="kpis">
+          <div className="kpi"><div className="kpi-label">Open</div><div className="kpi-value badge warn">{kpis.open}</div></div>
+          <div className="kpi"><div className="kpi-label">In Progress</div><div className="kpi-value badge info">{kpis.inProgress}</div></div>
+          <div className="kpi"><div className="kpi-label">Closed</div><div className="kpi-value badge ok">{kpis.closed}</div></div>
+        </div>
+        {activeTab==='tickets' && (
+          <div className="card">
+            <div className="card-header">
+              <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M7 7h10v10H7z" stroke="#5bc0be" strokeWidth="1.5"/><path d="M9 12h6" stroke="#5bc0be" strokeWidth="1.5"/></svg>
+              <h3 className="card-title">Tickets</h3>
+            </div>
+            <table className="table">
+              <thead><tr><th>Tenant</th><th>Apartment</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody>
+                {tickets.map(t => (
+                  <tr key={t.id}>
+                    <td>{t.Tenant?.name || t.tenantId}</td>
+                    <td>{t.Apartment?.number || t.apartmentId}</td>
+                    <td><span className={`badge ${t.status==='closed'?'ok':t.status==='in-progress'?'info':'warn'}`}>{t.status}</span></td>
+                    <td>
+                      <select value={t.status} onChange={e=>updateTicket(t.id, e.target.value)}>
+                        <option value="open">open</option>
+                        <option value="in-progress">in-progress</option>
+                        <option value="closed">closed</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {activeTab==='post' && (
+          <div className="card">
+            <div className="card-header">
+              <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M12 3v18M3 12h18" stroke="#5bc0be" strokeWidth="1.5"/></svg>
+              <h3 className="card-title">Post Notice</h3>
+            </div>
+            <form onSubmit={postNotice}>
+              <label>Title</label>
+              <input value={title} onChange={e=>setTitle(e.target.value)} />
+              <label>Message</label>
+              <textarea value={message} onChange={e=>setMessage(e.target.value)} />
+              <button className="btn">Post</button>
+            </form>
+          </div>
+        )}
+        {activeTab==='notices' && (
+          <div className="card">
+            <div className="card-header">
+              <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M6 10h12M8 14h8" stroke="#5bc0be" strokeWidth="1.5"/></svg>
+              <h3 className="card-title">Notices</h3>
+            </div>
+            <ul>
+              {notices.length === 0 ? (
+                <li className="muted">No notices yet.</li>
+              ) : (
+                notices.map(n => (
+                  <li key={n.id}><strong>{n.title}</strong> — {n.createdAt ? new Date(n.createdAt).toLocaleDateString() : '-'}<br/>{n.message}</li>
+                ))
+              )}
+            </ul>
+          </div>
+        )}
+        {activeTab==='record' && (
+          <div className="card">
+            <div className="card-header">
+              <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M4 7h16v10H4z" stroke="#5bc0be" strokeWidth="1.5"/><path d="M8 12h8" stroke="#5bc0be" strokeWidth="1.5"/></svg>
+              <h3 className="card-title">Record Payment</h3>
+            </div>
+            <form onSubmit={async (e)=>{
+              e.preventDefault();
+              try {
+                if (!recTenant || !recApartment || !recAmount) throw new Error('All fields required');
+                await api('/api/payments', { method:'POST', token, body:{ tenant: Number(recTenant), apartment: Number(recApartment), amount: Number(recAmount) } });
+                setRecTenant(''); setRecApartment(''); setRecAmount('');
+                toast.add('Payment recorded', 'success');
+              } catch (err) { toast.add(err.message, 'error'); }
+            }}>
+              <label>Tenant ID</label>
+              <input value={recTenant} onChange={e=>setRecTenant(e.target.value)} />
+              <label>Apartment ID</label>
+              <input value={recApartment} onChange={e=>setRecApartment(e.target.value)} />
+              <label>Amount (KSh)</label>
+              <input value={recAmount} onChange={e=>setRecAmount(e.target.value)} />
+              <button className="btn">Save</button>
+            </form>
+          </div>
+        )}
+        {activeTab==='reports' && (
+          <div className="card">
+            <div className="card-header">
+              <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4z" stroke="#5bc0be" strokeWidth="1.5"/><path d="M8 14l2-2 3 3 3-4" stroke="#5bc0be" strokeWidth="1.5"/></svg>
+              <h3 className="card-title">Reports</h3>
+            </div>
+            {!report ? <div className="muted">Loading…</div> : (
+              <div className="grid">
+                <div className="card">
+                  <h3>Occupancy</h3>
+                  <div>Total units: <strong>{report.occupancy.total}</strong></div>
+                  <div>Occupied: <strong>{report.occupancy.occupied}</strong></div>
+                  <div>Vacant: <strong>{report.occupancy.vacant}</strong></div>
+                </div>
+                <div className="card">
+                  <h3>Revenue</h3>
+                  <div>Collected: <strong>KSh {Number(report.revenue.collected||0).toLocaleString()}</strong></div>
+                  <div>Pending: <strong>KSh {Number(report.revenue.pending||0).toLocaleString()}</strong></div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {activeTab==='profile' && (
+          <div className="card">
+            <div className="card-header">
+              <svg className="icon" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3" stroke="#5bc0be" strokeWidth="1.5"/><path d="M4 20a8 8 0 0116 0" stroke="#5bc0be" strokeWidth="1.5"/></svg>
+              <h3 className="card-title">My Profile</h3>
+            </div>
+            <div className="muted" style={{ marginBottom: 8 }}>
+              <div><strong>Name:</strong> {me?.name || '-'}</div>
+              <div><strong>Email:</strong> {me?.email || '-'}</div>
+              <div><strong>Role:</strong> caretaker</div>
+              <div><strong>Estate:</strong> {me?.Estate?.name || me?.estateId || '-'}</div>
+              <div><strong>Apartment:</strong> {me?.Apartment?.number || me?.apartmentId || '-'}</div>
+            </div>
+            <ProfileEditor role="caretaker" token={token} me={me} onUpdated={async()=>{ try { setMe(await api('/api/landlords/caretakers/me', { token })); } catch {} }} />
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
 function TenantPay({ token, onPaid }) {
   const toast = useToast();
   const [amount, setAmount] = useState('');
@@ -1397,7 +1743,7 @@ function Home() {
               </>
             ) : (
               <>
-                <Link className="btn" to={role==='tenant' ? '/tenant' : '/landlord'} onClick={onCtaClick}>Go to Dashboard</Link>
+                <Link className="btn" to={role==='tenant' ? '/tenant' : role==='landlord' ? '/landlord' : '/caretaker'} onClick={onCtaClick}>Go to Dashboard</Link>
               </>
             )}
           </div>
@@ -1643,12 +1989,23 @@ function Register() {
 }
 
 function AuthWatch() {
-  const { logout, onAuthError } = useAuth();
+  const { logout } = useAuth();
   const toast = useToast();
+  const navigate = useNavigate();
+  const lastRef = React.useRef(0);
   useEffect(() => {
-    // Placeholder for global 401 handling (e.g., subscribe and logout on unauthorized)
-    // Could wire api() to call listeners here.
-  }, [logout, onAuthError, toast]);
+    const onUnauthorized = () => {
+      const now = Date.now();
+      if (now - lastRef.current < 3000) return; // debounce
+      lastRef.current = now;
+      toast.add('Session expired. Please sign in again.', 'error', {
+        label: 'Re-login',
+        onClick: () => { try { logout(); } catch {}; navigate('/signin'); }
+      });
+    };
+    window.addEventListener('api:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('api:unauthorized', onUnauthorized);
+  }, [logout, toast, navigate]);
   return null;
 }
 
@@ -1656,8 +2013,8 @@ export default function App() {
   return (
     <AuthProvider>
       <ToastProvider>
-        <AuthWatch />
         <BrowserRouter>
+          <AuthWatch />
           <Layout>
             <AnimatedRoutes />
           </Layout>
@@ -1678,7 +2035,8 @@ function AnimatedRoutes() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/tenant" element={<RequireAuth role="tenant"><div><TenantDashboard /></div></RequireAuth>} />
-        <Route path="/landlord" element={<RequireAuth role={['landlord','caretaker']}><div><LandlordDashboard /></div></RequireAuth>} />
+        <Route path="/landlord" element={<RequireAuth role="landlord"><div><LandlordDashboard /></div></RequireAuth>} />
+        <Route path="/caretaker" element={<RequireAuth role="caretaker"><div><CaretakerDashboard /></div></RequireAuth>} />
       </Routes>
     </div>
   );

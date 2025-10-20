@@ -4,19 +4,39 @@ const { models } = require('../db');
 const auth = require('../middleware/auth');
 const { sendMail } = require('../utils/mailer');
 
-// Create payment (landlord)
+// Create payment (landlord or caretaker with scope)
 router.post('/', auth, async (req, res) => {
-  if (req.user.role !== 'landlord') return res.status(403).json({ error: 'Forbidden' });
+  if (!['landlord','caretaker'].includes(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
   const { tenant, apartment, amount, date } = req.body;
-  const payment = await models.Payment.create({ tenantId: tenant, apartmentId: apartment, amount, date, status: 'pending' });
+  if (!tenant || !apartment || !amount) return res.status(400).json({ error: 'tenant, apartment, amount required' });
+  // Scope check for caretaker: must belong to their assigned estate/apartment
+  if (req.user.role === 'caretaker') {
+    const me = await models.Caretaker.findByPk(req.user.refId);
+    if (!me) return res.status(403).json({ error: 'Forbidden' });
+    const apt = await models.Apartment.findByPk(apartment);
+    if (!apt) return res.status(404).json({ error: 'Apartment not found' });
+    const est = await models.Estate.findByPk(apt.estateId);
+    const allowed = (me.apartmentId && String(me.apartmentId) === String(apt.id)) || (me.estateId && est && String(me.estateId) === String(est.id));
+    if (!allowed) return res.status(403).json({ error: 'Not allowed for this apartment' });
+  }
+  const payment = await models.Payment.create({ tenantId: tenant, apartmentId: apartment, amount, date: date || new Date(), status: 'pending' });
   res.status(201).json(payment);
 });
 
-// Update payment status
+// Update payment status (landlord or caretaker with scope)
 router.put('/:id', auth, async (req, res) => {
-  if (req.user.role !== 'landlord') return res.status(403).json({ error: 'Forbidden' });
+  if (!['landlord','caretaker'].includes(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
   const payment = await models.Payment.findByPk(req.params.id);
   if (!payment) return res.status(404).json({ error: 'Not found' });
+  if (req.user.role === 'caretaker') {
+    const me = await models.Caretaker.findByPk(req.user.refId);
+    if (!me) return res.status(403).json({ error: 'Forbidden' });
+    const apt = await models.Apartment.findByPk(payment.apartmentId);
+    if (!apt) return res.status(404).json({ error: 'Apartment not found' });
+    const est = await models.Estate.findByPk(apt.estateId);
+    const allowed = (me.apartmentId && String(me.apartmentId) === String(apt.id)) || (me.estateId && est && String(me.estateId) === String(est.id));
+    if (!allowed) return res.status(403).json({ error: 'Not allowed for this apartment' });
+  }
   await payment.update(req.body);
   res.json(payment);
 });
