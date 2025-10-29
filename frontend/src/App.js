@@ -2,7 +2,15 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { api } from './lib/api';
 import { AuthProvider, useAuth } from './lib/auth';
+import { useRealtime } from './lib/useRealtime';
 import Layout from './components/Layout';
+import QuickPay from './components/landlord/QuickPay';
+import InviteCaretaker from './components/landlord/InviteCaretaker';
+import AssignCaretaker from './components/landlord/AssignCaretaker';
+import RecordPayment from './components/landlord/RecordPayment';
+import ApartmentForm from './components/landlord/ApartmentForm';
+import DashboardOverview from './components/DashboardOverview';
+import Sidebar from './components/Sidebar';
 
 // Simple Toast system (with optional action button)
 const ToastContext = React.createContext(null);
@@ -34,7 +42,7 @@ function ToastProvider({ children }) {
 }
 const useToast = () => React.useContext(ToastContext);
 function TenantDashboard() {
-  const { token } = useAuth();
+  const { token, role } = useAuth();
   const nav = useNavigate();
   const [initialized, setInitialized] = React.useState(false);
   const toast = useToast();
@@ -51,7 +59,8 @@ function TenantDashboard() {
   const [ticketFrom, setTicketFrom] = React.useState('');
   const [ticketTo, setTicketTo] = React.useState('');
   const [me, setMe] = React.useState(null);
-  const [activeTab, setActiveTab] = React.useState('notices');
+  // Show overview first for landlords when applicable
+  const [activeTab, setActiveTab] = React.useState(role === 'landlord' ? 'overview' : 'notices');
   // Sidebar is always visible; no toggle per requirements
 
   React.useEffect(() => {
@@ -76,6 +85,19 @@ function TenantDashboard() {
       } catch {}
     })();
   }, [token]);
+  // Realtime: subscribe via shared hook
+  useRealtime(token, {
+    'payment:update': async (data) => {
+      try {
+        const id = data && data.id; const status = data && data.status;
+        if (!id) return;
+        if (payments.some(p => String(p.id) === String(id))) {
+          try { const pay = await api('/api/tenants/payments', { token }); setPayments(pay); } catch {}
+        }
+        toast.add(`Payment ${id} updated: ${status}`, status === 'paid' ? 'success' : 'info');
+      } catch (err) { console.debug('realtime payment handler error', err); }
+    }
+  });
 
   const refreshTenantNotices = useCallback(async () => {
     try {
@@ -149,19 +171,21 @@ function TenantDashboard() {
   };
 
   return (
-    <div className="dashboard">
-      <aside className="sidebar">
-        <div className="sidebar-section">
-          <div className="sidebar-title">Tenant</div>
-          <button className={`side-item ${activeTab==='profile'?'active':''}`} onClick={()=>setActiveTab('profile')}><span className="dot" aria-hidden>👤</span> Profile</button>
-          <button className={`side-item ${activeTab==='notices'?'active':''}`} onClick={()=>setActiveTab('notices')}><span className="dot" aria-hidden>📢</span> Notices</button>
-          <button className={`side-item ${activeTab==='payments'?'active':''}`} onClick={()=>setActiveTab('payments')}><span className="dot" aria-hidden>💳</span> Payment History</button>
-          <button className={`side-item ${activeTab==='tickets'?'active':''}`} onClick={()=>setActiveTab('tickets')}><span className="dot" aria-hidden>🎟️</span> My Tickets</button>
-          <button className={`side-item ${activeTab==='raise'?'active':''}`} onClick={()=>setActiveTab('raise')}><span className="dot" aria-hidden>➕</span> Raise Ticket</button>
-          <button className={`side-item ${activeTab==='vacate'?'active':''}`} onClick={()=>setActiveTab('vacate')}><span className="dot" aria-hidden>🚪</span> Vacate Notice</button>
-          <button className={`side-item ${activeTab==='pay'?'active':''}`} onClick={()=>setActiveTab('pay')}><span className="dot" aria-hidden>📱</span> Pay Rent</button>
-        </div>
-      </aside>
+    <div className="dashboard landlord">
+      <Sidebar
+        title="Tenant"
+        items={[
+          { id: 'profile', label: 'Profile', icon: '👤' },
+          { id: 'notices', label: 'Notices', icon: '📢' },
+          { id: 'payments', label: 'Payment History', icon: '💳' },
+          { id: 'tickets', label: 'My Tickets', icon: '🎟️' },
+          { id: 'raise', label: 'Raise Ticket', icon: '➕' },
+          { id: 'vacate', label: 'Vacate Notice', icon: '🚪' },
+          { id: 'pay', label: 'Pay Rent', icon: '📱' }
+        ]}
+        active={activeTab}
+        onChange={(id) => setActiveTab(id)}
+      />
       <section className="content">
   <h2 className="section-title compact">Welcome, {me?.name || 'Tenant'}</h2>
         {/* Overview */}
@@ -444,23 +468,20 @@ function LandlordDashboard() {
   const [estName, setEstName] = React.useState('');
   const [estAddr, setEstAddr] = React.useState('');
   const [assignEstateId, setAssignEstateId] = React.useState('');
-  const [assignCaretakerId, setAssignCaretakerId] = React.useState('');
   const [deleteCaretakerId, setDeleteCaretakerId] = React.useState('');
   const [kpis, setKpis] = React.useState({ open:0, inProgress:0, closed:0 });
   const [displayName, setDisplayName] = React.useState('');
   const [me, setMe] = React.useState(null);
-  const [activeTab, setActiveTab] = React.useState('notices');
+  // Which tab/section is active in the landlord UI
+  const [activeTab, setActiveTab] = React.useState('overview');
+  // Landlords should land on the overview page by default
   // Sidebar is always visible; no toggle per requirements
   const [landlordNotices, setLandlordNotices] = React.useState([]);
   const [payEstateId, setPayEstateId] = React.useState('');
   const [payAptId, setPayAptId] = React.useState('');
   const [payApts, setPayApts] = React.useState([]);
   const [payAptSearch, setPayAptSearch] = React.useState('');
-  // Add Apartment
-  const [addAptEstateId, setAddAptEstateId] = React.useState('');
-  const [addAptNumber, setAddAptNumber] = React.useState('');
-  const [addAptRent, setAddAptRent] = React.useState('');
-  const [addAptDeposit, setAddAptDeposit] = React.useState('');
+  // Add Apartment handled by ApartmentForm component
   // Landlord management: tenants & estates deletion
   const [ltName, setLtName] = React.useState('');
   const [ltIdNumber, setLtIdNumber] = React.useState('');
@@ -476,7 +497,6 @@ function LandlordDashboard() {
   const [selectedTenantPayments, setSelectedTenantPayments] = React.useState([]);
   const [inviteEstateId, setInviteEstateId] = React.useState('');
   const [inviteApts, setInviteApts] = React.useState([]);
-  const [inviteApartmentId, setInviteApartmentId] = React.useState('');
   const [inviteResult, setInviteResult] = React.useState(null);
   const [inviting, setInviting] = React.useState(false);
   // Assign Tenant to Apartment
@@ -521,6 +541,20 @@ function LandlordDashboard() {
     })();
   }, [token, role]);
 
+  // Real-time updates: prefer socket.io then SSE
+  useRealtime(token, {
+    'payment:update': async (data) => {
+      try {
+        try { const t = await api('/api/tickets', { token }); setTickets(t); } catch {}
+        try { const ns = await api('/api/landlords/notices', { token }); setLandlordNotices(ns); } catch {}
+        toast.add(`Update: ${data && data.id ? `#${data.id}` : 'item updated'}`, 'info');
+      } catch (e) {}
+    },
+    'ticket:update': async (data) => {
+      try { const t = await api('/api/tickets', { token }); setTickets(t); } catch {}
+    }
+  });
+
   React.useEffect(() => {
     const st = window.history.state && window.history.state.usr;
     if (!initialized) {
@@ -542,7 +576,7 @@ function LandlordDashboard() {
   // Load apartments for Invite flow when estate changes
   React.useEffect(() => {
     (async () => {
-      if (!inviteEstateId) { setInviteApts([]); setInviteApartmentId(''); return; }
+      if (!inviteEstateId) { setInviteApts([]); return; }
       try {
         const list = await api(`/api/public/estates/${inviteEstateId}/apartments`);
         setInviteApts(list);
@@ -611,15 +645,6 @@ function LandlordDashboard() {
     } catch (err) { toast.add(err.message, 'error'); }
   };
 
-  const assignCaretaker = async (e) => {
-    e.preventDefault();
-    try {
-      if (!assignEstateId || !assignCaretakerId) throw new Error('Estate and caretaker IDs required');
-      await api(`/api/landlords/estates/${assignEstateId}/assign-caretaker`, { method:'POST', token, body:{ caretakerId: Number(assignCaretakerId) } });
-      toast.add('Caretaker assigned', 'success');
-      setAssignEstateId(''); setAssignCaretakerId('');
-    } catch (err) { toast.add(err.message, 'error'); }
-  };
 
   const deleteCaretaker = async (e) => {
     e.preventDefault();
@@ -676,6 +701,19 @@ function LandlordDashboard() {
     return { paid, due };
   }, [payments]);
 
+  // Landlord: initiate MPesa STK push (server-side integration expected)
+  const initiateMpesaFromLandlord = async ({ apartmentId, amount, phone }) => {
+    try {
+      if (!apartmentId || !amount || !phone) throw new Error('apartmentId, amount and phone are required');
+      const res = await api('/api/landlords/payments/mpesa/initiate', { method: 'POST', token, body: { apartmentId, amount, phone } });
+      toast.add('STK push initiated to tenant (Daraja sandbox)', 'info');
+      return res;
+    } catch (err) {
+      toast.add(err.message, 'error');
+      throw err;
+    }
+  };
+
   const exportPaymentsCsv = () => {
     if (!payments.length) { toast.add('No payments to export', 'info'); return; }
     const rows = [['Date','Amount','Status','TenantId','ApartmentId']];
@@ -702,54 +740,34 @@ function LandlordDashboard() {
     } catch (err) { toast.add(err.message, 'error'); }
   };
 
-  const generateInvite = async (e) => {
-    e.preventDefault();
-    try {
-      setInviting(true);
-      const body = {};
-      if (inviteEstateId) body.estateId = Number(inviteEstateId);
-      if (inviteApartmentId) body.apartmentId = Number(inviteApartmentId);
-      const res = await api('/api/landlords/caretakers/invite', { method:'POST', token, body });
-      setInviteResult(res);
-      toast.add('Invite code generated', 'success');
-    } catch (err) { toast.add(err.message, 'error'); }
-    finally { setInviting(false); }
-  };
+  // Invite handled by InviteCaretaker component
 
   return (
     <div className="dashboard">
-      <aside className="sidebar">
-        <div className="sidebar-section">
-          <div className="sidebar-title">Manage</div>
-          <button className={`side-item ${activeTab==='profile'?'active':''}`} onClick={()=>setActiveTab('profile')}>Profile</button>
-          <button className={`side-item ${activeTab==='notices'?'active':''}`} onClick={()=>setActiveTab('notices')}>Notices</button>
-          <button className={`side-item ${activeTab==='tickets'?'active':''}`} onClick={()=>setActiveTab('tickets')}>Tickets</button>
-          <button className={`side-item ${activeTab==='post'?'active':''}`} onClick={()=>setActiveTab('post')}>Post Notice</button>
-          <button className={`side-item ${activeTab==='estate'?'active':''}`} onClick={()=>setActiveTab('estate')}>Add Estate</button>
-          <button className={`side-item ${activeTab==='add-apartment'?'active':''}`} onClick={()=>setActiveTab('add-apartment')}>Add Apartment</button>
-          <button className={`side-item ${activeTab==='assign-tenant'?'active':''}`} onClick={()=>setActiveTab('assign-tenant')}>Assign Tenant</button>
-          <button className={`side-item ${activeTab==='assign'?'active':''}`} onClick={()=>setActiveTab('assign')}>Assign Caretaker</button>
-          {role === 'landlord' && (
-            <button className={`side-item ${activeTab==='invite'?'active':''}`} onClick={()=>setActiveTab('invite')}>Invite Caretaker</button>
-          )}
-          <button className={`side-item ${activeTab==='delete'?'active':''}`} onClick={()=>setActiveTab('delete')}>Delete Caretaker</button>
-          {role === 'landlord' && (
-            <button className={`side-item ${activeTab==='tenants'?'active':''}`} onClick={()=>setActiveTab('tenants')}><span className="dot" aria-hidden>👥</span> Tenants</button>
-          )}
-            {role === 'landlord' && (
-              <>
-                <button className={`side-item ${activeTab==='add-tenant'?'active':''}`} onClick={()=>setActiveTab('add-tenant')}>Add Tenant</button>
-                <button className={`side-item ${activeTab==='delete-tenant'?'active':''}`} onClick={()=>setActiveTab('delete-tenant')}>Delete Tenant</button>
-                <button className={`side-item ${activeTab==='delete-estate'?'active':''}`} onClick={()=>setActiveTab('delete-estate')}>Delete Estate</button>
-                <button className={`side-item ${activeTab==='delete-apartment'?'active':''}`} onClick={()=>setActiveTab('delete-apartment')}>Delete Apartment</button>
-              </>
-            )}
-          <button className={`side-item ${activeTab==='reminders'?'active':''}`} onClick={()=>setActiveTab('reminders')}>Rent Reminders</button>
-          <button className={`side-item ${activeTab==='payments'?'active':''}`} onClick={()=>setActiveTab('payments')}>Rent Payments</button>
-          <button className={`side-item ${activeTab==='reports'?'active':''}`} onClick={()=>setActiveTab('reports')}>Reports</button>
-          <button className={`side-item ${activeTab==='system'?'active':''}`} onClick={()=>setActiveTab('system')}>System</button>
-        </div>
-      </aside>
+      <Sidebar
+        title="Manage"
+        items={[
+          { id: 'overview', label: 'Overview' },
+          { id: 'notices', label: 'Notices' },
+          { id: 'estate', label: 'Properties' },
+          { id: 'add-apartment', label: 'Add Apartment' },
+          { id: 'add-tenant', label: 'Add Tenant' },
+          { id: 'tenants', label: 'Tenants' },
+          { id: 'invite', label: 'Invite Caretaker' },
+          { id: 'assign', label: 'Assign Caretaker' },
+          { id: 'assign-tenant', label: 'Assign Tenant' },
+          { id: 'record', label: 'Record Payment' },
+          { id: 'payments', label: 'Payments' },
+          { id: 'reports', label: 'Reports' },
+          { id: 'reminders', label: 'Reminders' },
+          { id: 'delete-tenant', label: 'Delete Tenant' },
+          { id: 'delete-estate', label: 'Delete Estate' },
+          { id: 'delete-apartment', label: 'Delete Apartment' },
+          { id: 'system', label: 'System' }
+        ]}
+        active={activeTab}
+        onChange={(id) => setActiveTab(id)}
+      />
       <section className="content">
   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
     <h2 className="section-title compact" style={{ marginBottom: 0 }}>Welcome, {displayName || (role==='caretaker' ? 'Caretaker' : 'Landlord')}</h2>
@@ -901,6 +919,23 @@ function LandlordDashboard() {
             </div>
           </div>
   </div>
+        {activeTab==='overview' && (
+          <DashboardOverview
+            role={role}
+            token={token}
+            payments={payments}
+            notices={landlordNotices}
+            tickets={tickets}
+            kpis={kpis}
+            estates={estates}
+            onRefresh={async () => {
+              try {
+                const ns = await api('/api/landlords/notices', { token });
+                setLandlordNotices(ns);
+              } catch {}
+            }}
+          />
+        )}
         {activeTab==='notices' && (
           <>
             <div className="kpis">
@@ -1131,56 +1166,17 @@ function LandlordDashboard() {
         )}
         {activeTab==='add-apartment' && role==='landlord' && (
           <div className="card">
-            <div className="card-header">
-              <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M12 4v16M4 12h16" stroke="#5bc0be" strokeWidth="1.5"/></svg>
-              <h3 className="card-title">Add Apartment</h3>
-            </div>
-            <form onSubmit={async (e)=>{
-              e.preventDefault();
-              try {
-                if (!addAptEstateId) throw new Error('Select an estate');
-                if (!addAptNumber.trim()) throw new Error('Apartment number is required');
-                const rent = addAptRent ? Number(addAptRent) : 0;
-                const deposit = addAptDeposit ? Number(addAptDeposit) : 0;
-                await api(`/api/landlords/estates/${addAptEstateId}/apartments`, { method:'POST', token, body:{ number: addAptNumber, rent, deposit } });
-                setAddAptNumber(''); setAddAptRent(''); setAddAptDeposit('');
-                toast.add('Apartment created', 'success');
-                // if viewing apartments for same estate, refresh list
-                if (payEstateId && String(payEstateId) === String(addAptEstateId)) {
-                  try { const list = await api(`/api/public/estates/${payEstateId}/apartments`); setPayApts(list); } catch {}
-                }
-              } catch (err) {
-                toast.add(err.message, 'error');
-              }
-            }}>
-              <label>Estate</label>
-              <select value={addAptEstateId} onChange={e=>setAddAptEstateId(e.target.value)}>
-                <option value="">Select an estate</option>
-                {estates.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-              </select>
-              <label>Apartment Number</label>
-              <input value={addAptNumber} onChange={e=>setAddAptNumber(e.target.value)} />
-              <div className="filters" style={{ marginTop: 8 }}>
-                <input placeholder="Rent (optional)" value={addAptRent} onChange={e=>setAddAptRent(e.target.value)} />
-                <input placeholder="Deposit (optional)" value={addAptDeposit} onChange={e=>setAddAptDeposit(e.target.value)} />
-              </div>
-              <button className="btn" style={{ marginTop: 8 }}>Create Apartment</button>
-            </form>
+            <ApartmentForm token={token} estates={estates} onCreated={(res) => {
+              toast.add('Apartment created', 'success');
+            }} />
           </div>
         )}
         {activeTab==='assign' && (
           <div className="card">
-            <h3>Assign Caretaker</h3>
-            <form onSubmit={assignCaretaker}>
-              <label>Estate</label>
-              <select value={assignEstateId} onChange={e=>setAssignEstateId(e.target.value)}>
-                <option value="">Select an estate</option>
-                {estates.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-              </select>
-              <label>Caretaker ID</label>
-              <input value={assignCaretakerId} onChange={e=>setAssignCaretakerId(e.target.value)} placeholder="e.g. 1" />
-              <button className="btn">Assign</button>
-            </form>
+            <AssignCaretaker token={token} estates={estates} onAssigned={() => {
+              toast.add('Caretaker assigned', 'success');
+              setAssignEstateId('');
+            }} />
           </div>
         )}
         {activeTab==='assign-tenant' && role==='landlord' && (
@@ -1242,32 +1238,10 @@ function LandlordDashboard() {
         )}
         {activeTab==='invite' && role==='landlord' && (
           <div className="card">
-            <div className="card-header">
-              <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M12 4v16M4 12h16" stroke="#5bc0be" strokeWidth="1.5"/></svg>
-              <h3 className="card-title">Invite Caretaker</h3>
-            </div>
-            <form onSubmit={generateInvite}>
-              <label>Estate (optional)</label>
-              <select value={inviteEstateId} onChange={e=>setInviteEstateId(e.target.value)}>
-                <option value="">None</option>
-                {estates.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-              </select>
-              <label>Apartment (optional)</label>
-              <select value={inviteApartmentId} onChange={e=>setInviteApartmentId(e.target.value)} disabled={!inviteEstateId}>
-                <option value="">None</option>
-                {inviteApts.map(a => <option key={a.id} value={a.id}>{a.number || a.id}</option>)}
-              </select>
-              <button className="btn" disabled={inviting}>{inviting ? 'Generating…' : 'Generate Invite Code'}</button>
-            </form>
-            {inviteResult?.code && (
-              <div style={{ marginTop: 12 }}>
-                <div className="muted">Share this code with the caretaker to register:</div>
-                <div style={{ display:'flex', gap:8, alignItems:'center', marginTop:6 }}>
-                  <code style={{ padding:'4px 8px', borderRadius:6, background:'var(--panel)' }}>{inviteResult.code}</code>
-                  <button className="btn classic" onClick={()=>{ navigator.clipboard?.writeText(inviteResult.code); toast.add('Copied', 'success'); }}>Copy</button>
-                </div>
-              </div>
-            )}
+            <InviteCaretaker token={token} estates={estates} onInvite={(res) => {
+              setInviteResult(res);
+              if (res && res.code) toast.add('Invite code generated', 'success');
+            }} />
           </div>
         )}
         {activeTab==='reminders' && (
@@ -1371,14 +1345,12 @@ function CaretakerDashboard() {
   const [me, setMe] = React.useState(null);
   const [tickets, setTickets] = React.useState([]);
   const [notices, setNotices] = React.useState([]);
-  const [activeTab, setActiveTab] = React.useState('tickets');
+  const [activeTab, setActiveTab] = React.useState('overview');
   const [kpis, setKpis] = React.useState({ open:0, inProgress:0, closed:0 });
   const [title, setTitle] = React.useState('');
   const [message, setMessage] = React.useState('');
   const [report, setReport] = React.useState(null);
-  const [recTenant, setRecTenant] = React.useState('');
-  const [recApartment, setRecApartment] = React.useState('');
-  const [recAmount, setRecAmount] = React.useState('');
+  // Record Payment handled by RecordPayment component
 
   React.useEffect(() => {
     (async () => {
@@ -1405,6 +1377,16 @@ function CaretakerDashboard() {
     })();
   }, [token]);
 
+  // Realtime updates for caretaker: prefer socket.io then SSE
+  useRealtime(token, {
+    'ticket:update': async (data) => {
+      try { const list = await api('/api/landlords/tickets', { token }); setTickets(list); } catch {}
+    },
+    'payment:update': async (data) => {
+      try { const ns = await api('/api/landlords/notices', { token }); setNotices(ns); } catch {}
+    }
+  });
+
   const updateTicket = async (id, status) => {
     try {
       const updated = await api(`/api/landlords/tickets/${id}/status`, { method:'PUT', token, body:{ status } });
@@ -1429,17 +1411,19 @@ function CaretakerDashboard() {
 
   return (
     <div className="dashboard">
-      <aside className="sidebar">
-        <div className="sidebar-section">
-          <div className="sidebar-title">Caretaker</div>
-          <button className={`side-item ${activeTab==='profile'?'active':''}`} onClick={()=>setActiveTab('profile')}>Profile</button>
-          <button className={`side-item ${activeTab==='tickets'?'active':''}`} onClick={()=>setActiveTab('tickets')}>Tickets</button>
-          <button className={`side-item ${activeTab==='post'?'active':''}`} onClick={()=>setActiveTab('post')}>Post Notice</button>
-          <button className={`side-item ${activeTab==='notices'?'active':''}`} onClick={()=>setActiveTab('notices')}>Notices</button>
-          <button className={`side-item ${activeTab==='record'?'active':''}`} onClick={()=>setActiveTab('record')}>Record Payment</button>
-          <button className={`side-item ${activeTab==='reports'?'active':''}`} onClick={()=>setActiveTab('reports')}>Reports</button>
-        </div>
-      </aside>
+      <Sidebar
+        title="Caretaker"
+        items={[
+          { id: 'profile', label: 'Profile' },
+          { id: 'tickets', label: 'Tickets' },
+          { id: 'post', label: 'Post Notice' },
+          { id: 'notices', label: 'Notices' },
+          { id: 'record', label: 'Record Payment' },
+          { id: 'reports', label: 'Reports' }
+        ]}
+        active={activeTab}
+        onChange={(id) => setActiveTab(id)}
+      />
       <section className="content">
         <h2 className="section-title compact">Welcome, {me?.name || 'Caretaker'}</h2>
         <div className="kpis">
@@ -1447,6 +1431,21 @@ function CaretakerDashboard() {
           <div className="kpi"><div className="kpi-label">In Progress</div><div className="kpi-value badge info">{kpis.inProgress}</div></div>
           <div className="kpi"><div className="kpi-label">Closed</div><div className="kpi-value badge ok">{kpis.closed}</div></div>
         </div>
+        {activeTab==='overview' && (
+          <DashboardOverview
+            role="caretaker"
+            token={token}
+            payments={[]}
+            notices={notices}
+            tickets={tickets}
+            kpis={kpis}
+            estates={[]}
+            onRefresh={async () => {
+              try { const ns = await api('/api/landlords/notices', { token }); setNotices(ns); } catch {}
+            }}
+          />
+        )}
+
         {activeTab==='tickets' && (
           <div className="card">
             <div className="card-header">
@@ -1508,27 +1507,9 @@ function CaretakerDashboard() {
         )}
         {activeTab==='record' && (
           <div className="card">
-            <div className="card-header">
-              <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M4 7h16v10H4z" stroke="#5bc0be" strokeWidth="1.5"/><path d="M8 12h8" stroke="#5bc0be" strokeWidth="1.5"/></svg>
-              <h3 className="card-title">Record Payment</h3>
-            </div>
-            <form onSubmit={async (e)=>{
-              e.preventDefault();
-              try {
-                if (!recTenant || !recApartment || !recAmount) throw new Error('All fields required');
-                await api('/api/payments', { method:'POST', token, body:{ tenant: Number(recTenant), apartment: Number(recApartment), amount: Number(recAmount) } });
-                setRecTenant(''); setRecApartment(''); setRecAmount('');
-                toast.add('Payment recorded', 'success');
-              } catch (err) { toast.add(err.message, 'error'); }
-            }}>
-              <label>Tenant ID</label>
-              <input value={recTenant} onChange={e=>setRecTenant(e.target.value)} />
-              <label>Apartment ID</label>
-              <input value={recApartment} onChange={e=>setRecApartment(e.target.value)} />
-              <label>Amount (KSh)</label>
-              <input value={recAmount} onChange={e=>setRecAmount(e.target.value)} />
-              <button className="btn">Save</button>
-            </form>
+            <RecordPayment token={token} onSaved={(res) => {
+              toast.add('Payment recorded', 'success');
+            }} />
           </div>
         )}
         {activeTab==='reports' && (
@@ -1586,10 +1567,39 @@ function TenantPay({ token, onPaid }) {
       setLoading(true);
       if (!amount || !phone) throw new Error('Amount and phone required');
       const init = await api('/api/payments/mpesa/initiate', { method:'POST', token, body:{ amount: Number(amount), phone } });
-      await api('/api/payments/mpesa/complete', { method:'POST', token, body:{ paymentId: init.paymentId, success: true } });
-      toast.add('Payment successful (mock)', 'success');
-      setAmount(''); setPhone('');
-      onPaid && onPaid();
+      // If backend returned a flag that it's a local mock flow, behave as before
+      if (init && init.mock === true) {
+        // Optional: backend may return paymentId and a mock flag
+        await api('/api/payments/mpesa/complete', { method:'POST', token, body:{ paymentId: init.paymentId, success: true } });
+        toast.add('Payment successful (mock)', 'success');
+        setAmount(''); setPhone('');
+        onPaid && onPaid();
+        return;
+      }
+
+      // Otherwise poll status for the created payment id
+      const paymentId = init.paymentId;
+      if (!paymentId) throw new Error('No payment id returned from initiate');
+      toast.add('STK Push sent — waiting for confirmation', 'info');
+      // poll status up to 20 times (~20 * 3s = 60s)
+      let attempts = 0; let paid = false; let last;
+      while (attempts < 20 && !paid) {
+        await new Promise(r => setTimeout(r, 3000));
+        attempts++;
+        try {
+          const st = await api(`/api/payments/${paymentId}/status`, { token });
+          last = st;
+          if (st.status === 'paid') { paid = true; break; }
+        } catch (err) { /* ignore transient */ }
+      }
+      if (paid) {
+        toast.add('Payment confirmed', 'success');
+        setAmount(''); setPhone('');
+        onPaid && onPaid();
+      } else {
+        toast.add('Payment not confirmed yet — check later', 'error');
+        console.debug('MPESA init result', init, 'last status', last);
+      }
     } catch (err) {
       toast.add(err.message, 'error');
     } finally {

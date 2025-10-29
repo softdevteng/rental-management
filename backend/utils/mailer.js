@@ -15,13 +15,15 @@ async function getTransport() {
   });
 }
 
-async function sendMail({ to, subject, text, html }) {
+async function sendMail({ to, subject, text, html, attachments } = {}) {
   const transport = await getTransport();
   if (!transport) {
-    console.log('[MAIL:FALLBACK]', { to, subject, text });
+    console.log('[MAIL:FALLBACK]', { to, subject, text, attachments });
     return { fallback: true };
   }
-  return transport.sendMail({ from: process.env.MAIL_FROM || process.env.SMTP_USER, to, subject, text, html });
+  const mail = { from: process.env.MAIL_FROM || process.env.SMTP_USER, to, subject, text, html };
+  if (Array.isArray(attachments) && attachments.length > 0) mail.attachments = attachments;
+  return transport.sendMail(mail);
 }
 
 async function sendPasswordReset({ to, resetUrl }) {

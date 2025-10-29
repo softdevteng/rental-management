@@ -5,7 +5,8 @@ const { dbHealth } = require('./db');
 
 function createApp() {
   const app = express();
-  app.use(express.json());
+  // capture raw body for routes that need signature verification (e.g., MPESA callbacks)
+  app.use(express.json({ verify: (req, res, buf) => { try { req.rawBody = buf; } catch (e) { req.rawBody = null; } } }));
   // serve uploaded files statically (note: ephemeral on serverless platforms like Vercel)
   app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -35,4 +36,62 @@ function createApp() {
   return app;
 }
 
-module.exports = { createApp };
+// Create an HTTP server from the express app and (optionally) initialize Socket.IO.
+// Attaches the Socket.IO server to the stream utility so broadcasts use sockets when available.
+function createServer(app) {
+  const http = require('http');
+  const server = http.createServer(app);
+  let io = null;
+  try {
+    // Lazy-require socket.io so the project can run without it if not installed
+    const { Server } = require('socket.io');
+    io = new Server(server, {
+      cors: {
+        origin: process.env.SOCKET_IO_ORIGINS || '*',
+        methods: ['GET', 'POST']
+      }
+    });
+    // Socket.IO authentication: verify JWT and attach user info to socket.data.user
+    try {
+      const jwt = require('jsonwebtoken');
+      const secret = process.env.JWT_SECRET || 'secretkey';
+      const { models } = require('./db');
+      io.use(async (socket, next) => {
+        try {
+          const token = socket.handshake.auth && socket.handshake.auth.token ? socket.handshake.auth.token : (socket.handshake.query && socket.handshake.query.token);
+          if (!token) return next(new Error('Authentication error: no token'));
+          const decoded = jwt.verify(token, secret);
+          if (!decoded || !decoded.id) return next(new Error('Authentication error: invalid token'));
+          // Lookup user in DB to attach authoritative role/refId
+          try {
+            const user = await models.User.findByPk(decoded.id);
+            if (!user) return next(new Error('Authentication error: user not found'));
+            socket.data.user = { id: user.id, role: (user.role||'').toString().toLowerCase(), refId: user.refId };
+            return next();
+          } catch (dbErr) {
+            return next(new Error('Authentication error'));
+          }
+        } catch (err) {
+          return next(new Error('Authentication error'));
+        }
+      });
+    } catch (e) {
+      console.warn('Socket.IO auth setup failed', e && e.message);
+    }
+    // Attach io to stream util so publish() will also emit via sockets
+    try {
+      const { attachSocketIo } = require('./utils/stream');
+      attachSocketIo(io);
+      app.locals.io = io;
+      console.log('Socket.IO initialized and attached to stream util');
+    } catch (e) {
+      console.warn('Failed to attach Socket.IO to stream util:', e && e.message);
+    }
+  } catch (e) {
+    console.info('Socket.IO not configured or not installed - continuing without realtime sockets');
+  }
+
+  return { server, io };
+}
+
+module.exports = { createApp, createServer };

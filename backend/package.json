@@ -4,18 +4,35 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "dev": "cross-env USE_SQLITE_IN_MEMORY=true node index.js",
+    "test": "jest --runInBand",
     "smoke": "node scripts/smoke.js",
     "smoke:caretaker": "node scripts/smoke-caretaker.js",
     "purge:samples": "node scripts/purge-sample.js"
   },
   "dependencies": {
+    "axios": "^1.4.0",
     "bcryptjs": "^3.0.2",
     "dotenv": "^16.4.5",
     "express": "^4.18.2",
+    "ioredis": "^5.3.2",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.11.0",
     "nodemailer": "^6.9.14",
-    "sequelize": "^6.37.3"
+    "pdfkit": "^0.13.0",
+    "sequelize": "^6.37.3",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0",
+    "playwright": "^1.56.1",
+    "socket.io-client": "^4.8.1",
+    "sqlite3": "^5.1.6",
+    "supertest": "^6.3.3"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 20000
   }
 }

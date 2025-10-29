@@ -2,6 +2,33 @@ const express = require('express');
 const router = express.Router();
 const { models, Sequelize } = require('../db');
 const auth = require('../middleware/auth');
+const axios = require('axios');
+
+// Helpers for M-Pesa Daraja
+function normalizeMsisdn(phone) {
+  let msisdn = String(phone || '').replace(/\D/g, '');
+  if (msisdn.startsWith('0')) msisdn = '254' + msisdn.slice(1);
+  else if (msisdn.startsWith('7') && msisdn.length === 9) msisdn = '254' + msisdn;
+  else if (msisdn.startsWith('+254')) msisdn = msisdn.replace('+', '');
+  return msisdn;
+}
+
+async function getAccessToken() {
+  const key = process.env.MPESA_CONSUMER_KEY;
+  const secret = process.env.MPESA_CONSUMER_SECRET;
+  const env = (process.env.MPESA_ENV || 'sandbox').toLowerCase();
+  const url = env === 'production'
+    ? 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials'
+    : 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
+  const { data } = await axios.get(url, { auth: { username: key, password: secret } });
+  return data.access_token;
+}
+
+function lnmPassword(shortcode, passkey) {
+  const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0,14);
+  const raw = `${shortcode}${passkey}${timestamp}`;
+  return { password: Buffer.from(raw).toString('base64'), timestamp };
+}
 
 // Get landlord profile
 router.get('/me', auth, async (req, res) => {
@@ -160,6 +187,64 @@ router.patch('/caretakers/me', auth, async (req, res) => {
     photoUrl: typeof photoUrl === 'string' ? photoUrl : me.photoUrl,
   });
   res.json(me);
+});
+
+// Landlord: initiate M-Pesa STK push for an apartment (landlord or caretaker)
+router.post('/payments/mpesa/initiate', auth, async (req, res) => {
+  if (!['landlord','caretaker'].includes(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+  const { apartmentId, amount, phone } = req.body;
+  if (!apartmentId || !amount || !phone) return res.status(400).json({ error: 'apartmentId, amount and phone required' });
+  // Verify scope: landlord owns the estate/apartment or caretaker assigned
+  const apt = await models.Apartment.findByPk(apartmentId, { include: [models.Estate] });
+  if (!apt) return res.status(404).json({ error: 'Apartment not found' });
+  if (req.user.role === 'landlord') {
+    const est = await models.Estate.findByPk(apt.estateId);
+    if (!est || String(est.landlordId) !== String(req.user.refId)) return res.status(403).json({ error: 'Not your apartment' });
+  } else if (req.user.role === 'caretaker') {
+    const me = await models.Caretaker.findByPk(req.user.refId);
+    if (!me) return res.status(403).json({ error: 'Forbidden' });
+    // caretakers can only operate on their assigned apartment or estate
+    const ok = (me.apartmentId && String(me.apartmentId) === String(apt.id)) || (me.estateId && String(me.estateId) === String(apt.estateId));
+    if (!ok) return res.status(403).json({ error: 'Not allowed for this apartment' });
+  }
+
+  // Normalize phone and create payment record
+  const mpesaPhone = normalizeMsisdn(phone);
+  const payment = await models.Payment.create({ tenantId: apt.tenantId || null, apartmentId: apt.id, amount, date: new Date(), status: 'pending', method: 'mpesa', mpesaPhone });
+
+  try {
+    const token = await getAccessToken();
+    const shortcode = process.env.MPESA_SHORTCODE;
+    const passkey = process.env.MPESA_PASSKEY;
+    const { password, timestamp } = lnmPassword(shortcode, passkey);
+    const env = (process.env.MPESA_ENV || 'sandbox').toLowerCase();
+    const stkUrl = env === 'production'
+      ? 'https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest'
+      : 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest';
+    const payload = {
+      BusinessShortCode: Number(shortcode),
+      Password: password,
+      Timestamp: timestamp,
+      TransactionType: 'CustomerPayBillOnline',
+      Amount: Number(amount),
+      PartyA: mpesaPhone,
+      PartyB: Number(shortcode),
+      PhoneNumber: mpesaPhone,
+      CallBackURL: process.env.MPESA_CALLBACK_URL,
+      AccountReference: `APT-${apt.id}`,
+      TransactionDesc: `Rent payment for apartment ${apt.id}`,
+    };
+    const darajaRes = await axios.post(stkUrl, payload, { headers: { Authorization: `Bearer ${token}` } });
+    const data = darajaRes.data || {};
+    // Store checkout/merchant request ids if present
+    const checkoutRequestId = data.CheckoutRequestID || data.checkoutRequestID || null;
+    const merchantRequestId = data.MerchantRequestID || data.merchantRequestID || null;
+    await payment.update({ mpesaCheckoutRequestId: checkoutRequestId, mpesaMerchantRequestId: merchantRequestId });
+    res.status(201).json({ message: 'STK push initiated', paymentId: payment.id, checkoutRequestId, raw: data });
+  } catch (err) {
+    // Keep payment as pending and return error
+    res.status(502).json({ error: 'Daraja STK initiation failed', details: err.response?.data || err.message });
+  }
 });
 
 module.exports = router;

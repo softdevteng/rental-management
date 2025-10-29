@@ -1,17 +1,23 @@
 const { Sequelize, DataTypes } = require('sequelize');
 
-const DB_HOST = process.env.MYSQL_HOST || 'localhost';
-const DB_PORT = Number(process.env.MYSQL_PORT || 3306);
-const DB_USER = process.env.MYSQL_USER || 'root';
-const DB_PASS = process.env.MYSQL_PASSWORD || '';
-const DB_NAME = process.env.MYSQL_DB || 'rms';
-
-const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASS, {
-  host: DB_HOST,
-  port: DB_PORT,
-  dialect: 'mysql',
-  logging: false,
-});
+// Support in-memory sqlite for tests (set NODE_ENV=test or USE_SQLITE_IN_MEMORY=true)
+const useSqlite = String(process.env.USE_SQLITE_IN_MEMORY || '').toLowerCase() === 'true' || process.env.NODE_ENV === 'test';
+let sequelize;
+if (useSqlite) {
+  sequelize = new Sequelize({ dialect: 'sqlite', storage: ':memory:', logging: false });
+} else {
+  const DB_HOST = process.env.MYSQL_HOST || 'localhost';
+  const DB_PORT = Number(process.env.MYSQL_PORT || 3306);
+  const DB_USER = process.env.MYSQL_USER || 'root';
+  const DB_PASS = process.env.MYSQL_PASSWORD || '';
+  const DB_NAME = process.env.MYSQL_DB || 'rms';
+  sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASS, {
+    host: DB_HOST,
+    port: DB_PORT,
+    dialect: 'mysql',
+    logging: false,
+  });
+}
 
 // Define models
 const User = sequelize.define('User', {

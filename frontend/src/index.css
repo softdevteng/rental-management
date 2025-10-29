@@ -1,0 +1,9 @@
+/* stylelint-disable at-rule-no-unknown */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* stylelint-enable at-rule-no-unknown */
+
+/* Basic app styles */
+body { @apply bg-gray-50 text-gray-800; }
+.app-container { @apply max-w-6xl mx-auto p-4; }

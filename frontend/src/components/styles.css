@@ -3,6 +3,7 @@
 	--bg:#0b1220;               /* page background */
 	--bg-soft:#0f1629;          /* softer section bg */
 	--panel:#0f172a;            /* surfaces */
+	--header-height:72px;      /* global header height for layout offsets */
 	--panel-2:#0b1324;          /* deeper surfaces */
 	--border:rgba(148,163,184,.18);
 	--accent:#10b981;           /* primary accent (emerald) */
@@ -36,7 +37,7 @@ body{
 	color:var(--text)
 }
 .container{min-height:100vh;display:flex;flex-direction:column}
-.header{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:var(--panel);position:sticky;top:0;border-bottom:1px solid var(--border);backdrop-filter:saturate(140%) blur(6px)}
+.header{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:linear-gradient(180deg, rgba(15,23,42,.72), rgba(15,23,42,.56));position:fixed;left:0;right:0;top:0;height:var(--header-height);border-bottom:1px solid rgba(255,255,255,.04);backdrop-filter:saturate(140%) blur(8px);z-index:40}
 .brand{margin:0;color:var(--accent)}
 .nav a{color:var(--text);margin-right:12px;text-decoration:none;transition:color .15s ease}
 .nav a:hover{color:var(--accent)}
@@ -53,9 +54,10 @@ body{
 :root[data-theme='light'] .profile-chip{border-color:rgba(2,6,23,.08);background:rgba(2,6,23,.03)}
 .avatar-mini{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--accent),var(--accent-2));font-size:.75rem;color:#04121d;font-weight:700}
 .profile-name{max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.main{flex:1;padding:20px;}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
-.card{background:linear-gradient(180deg, rgba(255,255,255,.02), transparent), var(--panel);padding:16px;border-radius:12px;border:1px solid var(--border);box-shadow:0 12px 30px -18px rgba(2,6,23,.75)}
+.main{flex:1;padding:calc(var(--header-height) + 20px) 20px 40px 20px;min-height:calc(100vh - var(--header-height));}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+.card{background:linear-gradient(180deg, rgba(255,255,255,.02), transparent), var(--panel);padding:18px;border-radius:12px;border:1px solid var(--border);box-shadow:0 18px 40px -24px rgba(2,6,23,.7)}
+.card .card-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
 .card h3{margin-top:0}
 .card.card-appear{opacity:0;transform:translateY(8px);animation:cardIn .5s ease forwards}
 @keyframes cardIn{to{opacity:1;transform:none}}
@@ -159,7 +161,7 @@ label{font-size:.9rem;opacity:.9}
 /* Dashboard with sidebar */
 .dashboard{display:flex;gap:16px}
 /* Sidebar: more distinct look */
-.sidebar{width:260px;flex-shrink:0;background:var(--panel);border:1px solid rgba(148,163,184,.25);border-radius:14px;padding:14px;height:fit-content;position:sticky;top:72px;box-shadow:0 12px 28px -18px rgba(2,6,23,.85), inset 0 1px 0 rgba(255,255,255,.03)}
+.sidebar{width:260px;flex-shrink:0;background:var(--panel);border:1px solid rgba(148,163,184,.25);border-radius:14px;padding:14px;height:fit-content;position:sticky;top:calc(var(--header-height) + 12px);box-shadow:0 12px 28px -18px rgba(2,6,23,.85), inset 0 1px 0 rgba(255,255,255,.03)}
 :root[data-theme='light'] .sidebar{box-shadow:0 10px 24px -18px rgba(2,6,23,.2), inset 0 1px 0 rgba(255,255,255,.8)}
 .sidebar-title{font-weight:700;opacity:.9;margin:4px 0 8px}
 .side-item{display:block;width:100%;text-align:left;background:linear-gradient(180deg, rgba(255,255,255,.01), transparent);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:12px;margin:6px 0;cursor:pointer;transition:border-color .15s ease, color .15s ease, background .15s ease, transform .08s ease}
@@ -189,3 +191,23 @@ label{font-size:.9rem;opacity:.9}
 *::-webkit-scrollbar-thumb:hover{background:rgba(139,92,246,.5);background-clip:padding-box}
 *::-webkit-scrollbar-thumb:hover{background:rgba(16,185,129,.5);background-clip:padding-box}
 .price-card.featured{border-color:var(--accent);box-shadow:0 0 0 2px rgba(16,185,129,.25) inset}
+
+/* Landlord dashboard specific layout to match RentEasy style */
+.dashboard.landlord .content{padding:18px}
+.dashboard.landlord .kpis{grid-template-columns:repeat(4,1fr);gap:16px;margin:6px 0 18px}
+.dashboard.landlord .kpi{padding:18px;border-radius:14px;background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0.01)), linear-gradient(90deg, rgba(16,185,129,.06), rgba(56,189,248,.06));box-shadow:0 10px 30px -18px rgba(2,6,23,.6);border:1px solid rgba(255,255,255,.03)}
+.dashboard.landlord .kpi .kpi-value{font-size:1.9rem}
+.dashboard.landlord .overview-grid{display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-bottom:18px}
+.dashboard.landlord .overview-left{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.dashboard.landlord .big-card{padding:20px;border-radius:14px;min-height:160px;display:flex;flex-direction:column;justify-content:space-between}
+.dashboard.landlord .big-card.header-graph{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#04121d}
+.dashboard.landlord .big-card .card-title{color:inherit}
+.dashboard.landlord .properties-list{display:flex;flex-direction:column;gap:12px}
+.dashboard.landlord .property-item{display:flex;align-items:center;justify-content:space-between;padding:12px;border-radius:12px;background:var(--panel);border:1px solid var(--border)}
+.dashboard.landlord .property-meta{display:flex;flex-direction:column}
+.dashboard.landlord .property-stats{display:flex;gap:10px;align-items:center}
+.dashboard.landlord .quick-actions{display:flex;gap:8px}
+.dashboard.landlord .card.card-appear{animation:none;opacity:1;transform:none}
+.dashboard.landlord .sidebar{width:300px}
+.dashboard.landlord .card .card-header{align-items:center}
+.dashboard.landlord .muted{opacity:.85}
