@@ -769,138 +769,46 @@ function LandlordDashboard() {
         onChange={(id) => setActiveTab(id)}
       />
       <section className="content">
-  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
-    <h2 className="section-title compact" style={{ marginBottom: 0 }}>Welcome, {displayName || (role==='caretaker' ? 'Caretaker' : 'Landlord')}</h2>
-    <div className="card" style={{ padding:'8px 12px', display:'flex', alignItems:'center', gap:10, margin:0 }}>
-      <div style={{ width:36, height:36, borderRadius:'50%', overflow:'hidden', background:'linear-gradient(135deg, var(--accent), var(--accent-2))', display:'flex', alignItems:'center', justifyContent:'center' }}>
-        {me?.photoUrl ? (
-          <img src={me.photoUrl} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={(e)=>{ e.currentTarget.style.display='none'; }} />
-        ) : (
-          <span style={{ color:'#04121d', fontWeight:800 }}>{(me?.name||'U').slice(0,1).toUpperCase()}</span>
-        )}
-        {activeTab==='add-tenant' && role==='landlord' && (
-          <div className="card">
-            <div className="card-header">
-              <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M12 4v16M4 12h16" stroke="#5bc0be" strokeWidth="1.5"/></svg>
-              <h3 className="card-title">Add Tenant</h3>
-            </div>
-            <form onSubmit={async (e)=>{
-              e.preventDefault();
-              try {
-                if (!ltName.trim() || !ltIdNumber.trim()) throw new Error('Name and ID number are required');
-                const created = await api('/api/landlords/tenants', { method:'POST', token, body:{ name: ltName, idNumber: ltIdNumber, email: ltEmail || undefined, phone: ltPhone || undefined } });
-                setLtName(''); setLtIdNumber(''); setLtEmail(''); setLtPhone('');
-                toast.add('Tenant created', 'success');
-              } catch (err) { toast.add(err.message, 'error'); }
-            }}>
-              <label>Name</label>
-              <input value={ltName} onChange={e=>setLtName(e.target.value)} />
-              <label>ID Number</label>
-              <input value={ltIdNumber} onChange={e=>setLtIdNumber(e.target.value)} />
-              <label>Email (optional)</label>
-              <input value={ltEmail} onChange={e=>setLtEmail(e.target.value)} />
-              <label>Phone (optional)</label>
-              <input value={ltPhone} onChange={e=>setLtPhone(e.target.value)} />
-              <button className="btn">Create Tenant</button>
-            </form>
-          </div>
-        )}
-        {activeTab==='delete-tenant' && role==='landlord' && (
-          <div className="card">
-            <div className="card-header">
-              <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M6 7h12v10H6z" stroke="#5bc0be" strokeWidth="1.5"/></svg>
-              <h3 className="card-title">Delete Tenant</h3>
-            </div>
-            {llTenantsLoading ? <div className="muted">Loading…</div> : (
-              <table className="table">
-                <thead><tr><th>Name</th><th>ID Number</th><th>Apartment</th><th>Estate</th><th>Action</th></tr></thead>
-                <tbody>
-                  {llTenants.length === 0 ? (
-                    <tr><td colSpan={5} className="muted">No tenants found.</td></tr>
-                  ) : llTenants.map(t => (
-                    <tr key={t.id}>
-                      <td>{t.name || '—'}</td>
-                      <td>{t.idNumber || '—'}</td>
-                      <td>{t.Apartment?.number || '—'}</td>
-                      <td>{t.Apartment?.Estate?.name || '—'}</td>
-                      <td>
-                        <button className="btn" onClick={async ()=>{
-                          if (!window.confirm('Delete this tenant?')) return;
-                          try {
-                            await api(`/api/landlords/tenants/${t.id}`, { method:'DELETE', token });
-                            setLlTenants(cur => cur.filter(x => x.id !== t.id));
-                            toast.add('Tenant deleted', 'success');
-                          } catch (err) { toast.add(err.message, 'error'); }
-                        }}>Delete</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )}
-        {activeTab==='delete-estate' && role==='landlord' && (
-          <div className="card">
-            <div className="card-header">
-              <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M6 7h12v10H6z" stroke="#5bc0be" strokeWidth="1.5"/></svg>
-              <h3 className="card-title">Delete Estate</h3>
-            </div>
-            <label>Select estate</label>
-            <select value={delEstateId} onChange={e=>setDelEstateId(e.target.value)}>
-              <option value="">Select…</option>
-              {estates.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-            </select>
-            <button className="btn" disabled={!delEstateId} onClick={async ()=>{
-              if (!delEstateId) return;
-              if (!window.confirm('Delete this estate and its apartments?')) return;
-              try {
-                await api(`/api/landlords/estates/${delEstateId}`, { method:'DELETE', token });
-                setEstates(cur => cur.filter(x => String(x.id) !== String(delEstateId)));
-                setDelEstateId('');
-                toast.add('Estate deleted', 'success');
-              } catch (err) { toast.add(err.message, 'error'); }
-            }}>Delete Estate</button>
-          </div>
-        )}
-        {activeTab==='delete-apartment' && role==='landlord' && (
-          <div className="card">
-            <div className="card-header">
-              <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M6 7h12v10H6z" stroke="#5bc0be" strokeWidth="1.5"/></svg>
-              <h3 className="card-title">Delete Apartment</h3>
-            </div>
-            <div className="filters">
-              <select value={payEstateId} onChange={e=>setPayEstateId(e.target.value)}>
-                <option value="">Select estate</option>
-                {estates.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-              </select>
-              <input placeholder="Filter by number" value={payAptSearch} onChange={e=>setPayAptSearch(e.target.value)} disabled={!payEstateId} />
-              <select value={payAptId} onChange={e=>setPayAptId(e.target.value)} disabled={!payEstateId}>
-                <option value="">Select apartment</option>
-                {payApts
-                  .filter(a => payAptSearch ? String(a.number||'').toLowerCase().includes(payAptSearch.toLowerCase()) : true)
-                  .map(a => <option key={a.id} value={a.id}>{a.number || a.id}</option>)}
-              </select>
-              <button className="btn" disabled={!payAptId} onClick={async ()=>{
-                if (!payAptId) return;
-                if (!window.confirm('Delete this apartment?')) return;
-                try {
-                  await api(`/api/landlords/apartments/${payAptId}`, { method:'DELETE', token });
-                  setPayApts(cur => cur.filter(x => String(x.id) !== String(payAptId)));
-                  setPayAptId('');
-                  toast.add('Apartment deleted', 'success');
-                } catch (err) { toast.add(err.message, 'error'); }
-              }}>Delete Apartment</button>
-            </div>
-          </div>
-        )}
-      </div>
-      <div style={{ display:'flex', flexDirection:'column', lineHeight:1.2 }}>
-        <strong style={{ fontSize:14 }}>{me?.name || displayName || (role==='caretaker'?'Caretaker':'Landlord')}</strong>
-        <span className="muted" style={{ fontSize:12 }}>{role}</span>
-      </div>
-      {/* Edit button removed as requested */}
+  <div className="flex items-center justify-between gap-3 md:gap-6">
+    <div>
+      <h2 className="section-title compact mb-0 text-lg md:text-2xl">Welcome, {displayName || (role==='caretaker' ? 'Caretaker' : 'Landlord')}</h2>
+      <p className="muted text-sm md:text-base">Manage properties, tenants and payments</p>
     </div>
+
+    <div className="flex items-center gap-3">
+      <div className="hidden md:flex items-center space-x-3">
+        <div className="px-3 py-2 bg-slate-50 rounded-lg border">
+          <div className="text-xs text-slate-400">Open Tickets</div>
+          <div className="text-sm font-semibold">{kpis.open ?? 0}</div>
+        </div>
+        <div className="px-3 py-2 bg-slate-50 rounded-lg border">
+          <div className="text-xs text-slate-400">In Progress</div>
+          <div className="text-sm font-semibold">{kpis.inProgress ?? 0}</div>
+        </div>
+        <div className="px-3 py-2 bg-slate-50 rounded-lg border">
+          <div className="text-xs text-slate-400">Closed</div>
+          <div className="text-sm font-semibold">{kpis.closed ?? 0}</div>
+        </div>
+      </div>
+
+      <div className="card p-2 flex items-center gap-3" style={{ margin:0 }}>
+        <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center" style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-2))' }}>
+          {me?.photoUrl ? (
+            <img src={me.photoUrl} alt="avatar" className="w-full h-full object-cover" onError={(e)=>{ e.currentTarget.style.display='none'; }} />
+          ) : (
+            <span className="text-gray-900 font-bold">{(me?.name||'U').slice(0,1).toUpperCase()}</span>
+          )}
+        </div>
+
+        <div className="flex flex-col leading-tight">
+          <strong className="text-sm">{me?.name || displayName || (role==='caretaker'?'Caretaker':'Landlord')}</strong>
+          <span className="muted text-xs">{role}</span>
+        </div>
+
+        {/* Edit button removed as requested */}
+      </div>
+    </div>
+  </div>
           {/* Recent Activity */}
           <div className="card" style={{ margin:'12px 0' }}>
             <div className="card-header">
@@ -918,7 +826,6 @@ function LandlordDashboard() {
               </div>
             </div>
           </div>
-  </div>
         {activeTab==='overview' && (
           <DashboardOverview
             role={role}
