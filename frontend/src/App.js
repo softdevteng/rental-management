@@ -41,6 +41,7 @@ function ToastProvider({ children }) {
   );
 }
 const useToast = () => React.useContext(ToastContext);
+// Inspector overlay removed from the app (no dialog will be shown)
 function TenantDashboard() {
   const { token, role } = useAuth();
   const nav = useNavigate();
