@@ -1,0 +1,28 @@
+name: Purge Demo Data (manual)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+      - name: Run purge script (manual)
+        working-directory: backend
+        env:
+          ALLOW_PURGE: 'true'
+          MYSQL_HOST: ${{ secrets.MYSQL_HOST }}
+          MYSQL_PORT: ${{ secrets.MYSQL_PORT }}
+          MYSQL_DB: ${{ secrets.MYSQL_DB }}
+          MYSQL_USER: ${{ secrets.MYSQL_USER }}
+          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: node scripts/purge-sample.js
