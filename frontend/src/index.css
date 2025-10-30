@@ -7,3 +7,15 @@
 /* Basic app styles */
 body { @apply bg-gray-50 text-gray-800; }
 .app-container { @apply max-w-6xl mx-auto p-4; }
+
+/* Remove focus outline/box when buttons are clicked with the mouse
+	 but preserve keyboard accessibility using :focus-visible where supported. */
+button:focus:not(:focus-visible),
+button.btn:focus:not(:focus-visible),
+.btn:focus:not(:focus-visible) {
+	outline: none;
+	box-shadow: none;
+}
+
+/* Remove mobile tap highlight */
+button, .btn { -webkit-tap-highlight-color: transparent; }
