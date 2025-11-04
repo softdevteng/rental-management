@@ -10,6 +10,7 @@ import AssignCaretaker from './components/landlord/AssignCaretaker';
 import RecordPayment from './components/landlord/RecordPayment';
 import ApartmentForm from './components/landlord/ApartmentForm';
 import DashboardOverview from './components/DashboardOverview';
+import DashboardPage from './components/dashboard/DashboardPage';
 import Sidebar from './components/Sidebar';
 import MPesaModal from './components/landlord/MPesaModal';
 
@@ -2137,6 +2138,7 @@ function AnimatedRoutes() {
         <Route path="/tenant" element={<RequireAuth role="tenant"><div><TenantDashboard /></div></RequireAuth>} />
         <Route path="/landlord" element={<RequireAuth role="landlord"><div><LandlordDashboard /></div></RequireAuth>} />
         <Route path="/caretaker" element={<RequireAuth role="caretaker"><div><CaretakerDashboard /></div></RequireAuth>} />
+          <Route path="/dashboard" element={<RequireAuth role={["landlord","caretaker"]}><DashboardPage /></RequireAuth>} />
       </Routes>
     </div>
   );

@@ -77,7 +77,13 @@ export default function Layout({ children }) {
         <nav className="nav" style={{ display:'flex', alignItems:'center', gap:12 }}>
           <Link to="/">Home</Link>
           {token && (
-            <Link to={role==='tenant'? '/tenant' : role==='landlord'? '/landlord' : '/caretaker'}>Dashboard</Link>
+            <>
+              <Link to={role==='tenant'? '/tenant' : role==='landlord'? '/landlord' : '/caretaker'}>Dashboard</Link>
+              {/* New unified dashboard for estate-level KPIs */}
+              {(role === 'landlord' || role === 'caretaker') && (
+                <Link to="/dashboard">Estate Dashboard</Link>
+              )}
+            </>
           )}
           <button aria-label={theme==='dark'? 'Switch to light mode':'Switch to dark mode'} title={theme==='dark'? 'Switch to light mode':'Switch to dark mode'} className="btn classic" onClick={toggleTheme} style={{ padding:'6px 10px' }}>
             {theme === 'dark' ? (

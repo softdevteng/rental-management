@@ -1,4 +1,0 @@
-# Render manifest (deprecated)
-# This file has been retained for historical reasons. CI now uses a GitHub Actions
-# workflow and deployment manifests were intentionally removed from active use.
-# If you need Render automation again, re-create a new manifest or open an issue.

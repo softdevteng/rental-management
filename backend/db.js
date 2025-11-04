@@ -102,6 +102,16 @@ const Notice = sequelize.define('Notice', {
   createdAt: { type: DataTypes.DATE, defaultValue: Sequelize.NOW },
 });
 
+// Expenses (operational costs, repairs, utilities etc.)
+const Expense = sequelize.define('Expense', {
+  amount: DataTypes.DECIMAL(10,2),
+  date: DataTypes.DATE,
+  category: DataTypes.STRING,
+  notes: DataTypes.TEXT,
+  estateId: DataTypes.INTEGER,
+  landlordId: DataTypes.INTEGER,
+});
+
 // Caretaker invite codes created by landlord
 const CaretakerInvite = sequelize.define('CaretakerInvite', {
   code: { type: DataTypes.STRING, unique: true },
@@ -144,6 +154,12 @@ Estate.hasMany(Caretaker, { foreignKey: 'estateId' });
 Caretaker.belongsTo(Apartment, { foreignKey: 'apartmentId' });
 Apartment.hasMany(Caretaker, { foreignKey: 'apartmentId' });
 
+// Expense associations
+Estate.hasMany(Expense, { foreignKey: 'estateId' });
+Expense.belongsTo(Estate, { foreignKey: 'estateId' });
+Landlord.hasMany(Expense, { foreignKey: 'landlordId' });
+Expense.belongsTo(Landlord, { foreignKey: 'landlordId' });
+
 let connected = false;
 async function connectAndSync() {
   await sequelize.authenticate();
@@ -157,7 +173,7 @@ module.exports = {
   sequelize,
   Sequelize,
   DataTypes,
-  models: { User, Tenant, Landlord, Estate, Apartment, Ticket, Payment, Notice, Caretaker, CaretakerInvite },
+  models: { User, Tenant, Landlord, Estate, Apartment, Ticket, Payment, Notice, Caretaker, CaretakerInvite, Expense },
   connectAndSync,
   dbHealth,
 };
