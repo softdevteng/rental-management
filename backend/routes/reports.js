@@ -58,4 +58,42 @@ router.get('/estate-summary', auth, async (req, res) => {
   });
 });
 
+// Analytics endpoints: simple aggregation for KPIs/trends used by dashboard widgets
+router.get('/analytics', auth, async (req, res) => {
+  if (!['landlord','caretaker','admin'].includes(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
+
+  // basic time-windowed stats (last 3 months) - counts by month
+  const months = [];
+  const now = new Date();
+  for (let i = 2; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    months.push({ key, date: d });
+  }
+
+  const payments = await models.Payment.findAll();
+  const tenants = await models.Tenant.findAll();
+
+  const monthlyRevenue = months.map(m => {
+    const monthPayments = payments.filter(p => {
+      const created = new Date(p.createdAt);
+      const key = `${created.getFullYear()}-${String(created.getMonth()+1).padStart(2,'0')}`;
+      return key === m.key;
+    });
+    return { month: m.key, collected: monthPayments.filter(p => p.status === 'paid').reduce((s,p)=> s + Number(p.amount||0), 0) };
+  });
+
+  const monthlyNewTenants = months.map(m => {
+    const t = tenants.filter(tn => {
+      const created = new Date(tn.createdAt);
+      const key = `${created.getFullYear()}-${String(created.getMonth()+1).padStart(2,'0')}`;
+      return key === m.key;
+    });
+    return { month: m.key, count: t.length };
+  });
+
+  res.json({ monthlyRevenue, monthlyNewTenants });
+});
+
 module.exports = router;
+
