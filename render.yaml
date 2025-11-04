@@ -1,36 +1,4 @@
-services:
-  - type: web
-    name: rental-management-backend
-    env: node
-    rootDir: backend
-    plan: free
-    buildCommand: npm install
-    startCommand: node index.js
-    envVars:
-      - key: PORT
-        value: 10000
-      - key: MYSQL_HOST
-        sync: false
-      - key: MYSQL_PORT
-        value: 3306
-      - key: MYSQL_DB
-        sync: false
-      - key: MYSQL_USER
-        sync: false
-      - key: MYSQL_PASSWORD
-        sync: false
-      - key: JWT_SECRET
-        sync: false
-      - key: FRONTEND_URL
-        sync: false
-
-  - type: web
-    name: rental-management-frontend
-    env: static
-    rootDir: frontend
-    plan: free
-    buildCommand: npm install && npm run build
-    staticPublishPath: build
-    envVars:
-      - key: REACT_APP_API_BASE
-        sync: false
+# Render manifest (deprecated)
+# This file has been retained for historical reasons. CI now uses a GitHub Actions
+# workflow and deployment manifests were intentionally removed from active use.
+# If you need Render automation again, re-create a new manifest or open an issue.

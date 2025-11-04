@@ -10,16 +10,44 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+
+      - name: Cache frontend node_modules
+        uses: actions/cache@v4
+        with:
+          path: frontend/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Clean frontend caches (safe)
+        run: |
+          # remove stubborn cache dirs that can cause ENOTEMPTY on CI
+          if [ -d frontend/node_modules/.cache ]; then rm -rf frontend/node_modules/.cache || true; fi
+          # ensure a clean node_modules state before npm ci (cache may restore)
+          if [ -d frontend/node_modules ] && [ ! -f frontend/package-lock.json ]; then rm -rf frontend/node_modules || true; fi
+
       - name: Install dependencies (frontend)
         working-directory: frontend
-        run: npm ci
+        run: npm ci --no-audit --no-fund
+
       - name: Build frontend (static)
         working-directory: frontend
+        env:
+          CI: true
+          # Provide the API base URL to the frontend build if set in repository secrets.
+          REACT_APP_API_BASE: ${{ secrets.REACT_APP_API_BASE }}
         run: npm run build
+
+      - name: Show build artifact summary
+        run: |
+          echo "Frontend build size:"
+          du -sh frontend/build || true
+
       - name: Vercel Deploy
         uses: amondnet/vercel-action@v20
         with:
@@ -29,3 +57,11 @@ jobs:
           vercel-args: '--prod'
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Pre-deploy secrets check
+        run: |
+          echo "Checking required secrets..."
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then echo "ERROR: VERCEL_TOKEN is not set"; exit 1; else echo "VERCEL_TOKEN: OK"; fi
+          if [ -z "${{ secrets.VERCEL_ORG_ID }}" ]; then echo "WARNING: VERCEL_ORG_ID not set"; fi
+          if [ -z "${{ secrets.VERCEL_PROJECT_ID }}" ]; then echo "WARNING: VERCEL_PROJECT_ID not set"; fi
+          if [ -z "${{ secrets.REACT_APP_API_BASE }}" ]; then echo "WARNING: REACT_APP_API_BASE not set — frontend will build with empty API base"; fi

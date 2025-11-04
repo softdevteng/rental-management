@@ -17,7 +17,9 @@ afterEach(() => { jest.restoreAllMocks(); });
 test('sign in flow does not throw and navigates', async () => {
   render(<App />);
   // navigate to sign in
-  const signInLink = await screen.findByText(/Sign In/i);
+  // multiple 'Sign In' elements exist (header + CTA); pick CTA link when available
+  const signInEls = await screen.findAllByText(/Sign In/i);
+  const signInLink = signInEls.find(el => el.tagName.toLowerCase() === 'a' && el.classList.contains('btn')) || signInEls[0];
   fireEvent.click(signInLink);
   // fill form
   const email = await screen.findByPlaceholderText(/Email/i);

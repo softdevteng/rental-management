@@ -10,6 +10,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start:backend": "npm --prefix backend start",
     "start:frontend": "npm --prefix frontend start"
+    ,
+    "test:all": "npm --prefix backend test -- --runInBand && npm --prefix frontend test -- --watchAll=false"
   },
   "keywords": [],
   "author": "",

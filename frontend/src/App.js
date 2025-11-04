@@ -11,6 +11,7 @@ import RecordPayment from './components/landlord/RecordPayment';
 import ApartmentForm from './components/landlord/ApartmentForm';
 import DashboardOverview from './components/DashboardOverview';
 import Sidebar from './components/Sidebar';
+import MPesaModal from './components/landlord/MPesaModal';
 
 // Simple Toast system (with optional action button)
 const ToastContext = React.createContext(null);
@@ -490,6 +491,10 @@ function LandlordDashboard() {
   const [ltPhone, setLtPhone] = React.useState('');
   const [llTenants, setLlTenants] = React.useState([]);
   const [llTenantsLoading, setLlTenantsLoading] = React.useState(false);
+  // Add tenant flow state
+  const [newTenantEstateId, setNewTenantEstateId] = React.useState('');
+  const [newTenantApts, setNewTenantApts] = React.useState([]);
+  const [newTenantAptId, setNewTenantAptId] = React.useState('');
   const [delEstateId, setDelEstateId] = React.useState('');
   // Tenants & Invite state
   const [tenants, setTenants] = React.useState([]);
@@ -500,6 +505,11 @@ function LandlordDashboard() {
   const [inviteApts, setInviteApts] = React.useState([]);
   const [inviteResult, setInviteResult] = React.useState(null);
   const [inviting, setInviting] = React.useState(false);
+  const [tenantApartmentFilter, setTenantApartmentFilter] = React.useState('');
+  // MPesa modal state
+  const [mpesaModalOpen, setMpesaModalOpen] = React.useState(false);
+  const [mpesaModalTenant, setMpesaModalTenant] = React.useState(null);
+  const [mpesaModalAptId, setMpesaModalAptId] = React.useState(null);
   // Assign Tenant to Apartment
   const [assignTenantEstateId, setAssignTenantEstateId] = React.useState('');
   const [assignTenantAptId, setAssignTenantAptId] = React.useState('');
@@ -584,6 +594,17 @@ function LandlordDashboard() {
       } catch {}
     })();
   }, [inviteEstateId]);
+
+  // Load apartments for Add Tenant flow when estate changes
+  React.useEffect(() => {
+    (async () => {
+      if (!newTenantEstateId) { setNewTenantApts([]); setNewTenantAptId(''); return; }
+      try {
+        const list = await api(`/api/public/estates/${newTenantEstateId}/apartments`);
+        setNewTenantApts(list);
+      } catch {}
+    })();
+  }, [newTenantEstateId]);
 
   // Load apartments for Assign Tenant flow when estate changes
   React.useEffect(() => {
@@ -686,6 +707,28 @@ function LandlordDashboard() {
     closed: landlordFiltered.filter(t=>t.status==='closed').length,
   };
 
+  // Helper: generate tenant code from apartment name (e.g. "Green Park" -> "GP001")
+  const makeTenantCode = (apartment) => {
+    try {
+      const base = (apartment && (apartment.number || apartment.name)) || '';
+      const words = String(base).trim().split(/\s+/).filter(Boolean);
+      let prefix = '';
+      if (words.length === 0) prefix = (String(base).slice(0,2) || 'TN').toUpperCase();
+      else if (words.length === 1) prefix = (words[0].slice(0,2)).toUpperCase();
+      else prefix = (words[0][0] + words[1][0]).toUpperCase();
+      // Count existing tenants with same prefix
+      const same = (tenants || []).filter(t => {
+        const apt = t.Apartment || {};
+        const p = (apt.number || apt.name || '').toString();
+        const w = p.trim().split(/\s+/).filter(Boolean);
+        const candidate = w.length === 0 ? (p.slice(0,2) || '').toUpperCase() : (w.length===1? w[0].slice(0,2).toUpperCase() : (w[0][0]+w[1][0]).toUpperCase());
+        return candidate === prefix;
+      }).length;
+      const seq = String(same + 1).padStart(3, '0');
+      return `${prefix}${seq}`;
+    } catch (err) { return `TN${String(Date.now()).slice(-3)}`; }
+  };
+
   const loadPayments = async () => {
     try {
       if (!payAptId) throw new Error('Provide an apartment');
@@ -738,6 +781,40 @@ function LandlordDashboard() {
     try {
       const pays = await api(`/api/landlords/tenants/${tenant.id}/payments`, { token });
       setSelectedTenantPayments(pays || []);
+    } catch (err) { toast.add(err.message, 'error'); }
+  };
+
+  // Handle actions from the tenants actions dropdown
+  const handleTenantAction = async (e, t) => {
+    const action = e.target.value;
+    e.target.value = '';
+    try {
+      if (action === 'view') return viewTenantPayments(t);
+      if (action === 'mpesa') {
+        const aptId = t.apartmentId || t.Apartment?.id;
+        setMpesaModalTenant(t);
+        setMpesaModalAptId(aptId);
+        setMpesaModalOpen(true);
+        return;
+      }
+      if (action === 'vacate') {
+        if (!confirm(`Mark tenant ${t.name || t.id} as vacating? This will free the apartment.`)) return;
+        try {
+          await api(`/api/landlords/tenants/${t.id}/vacate`, { method: 'POST', token });
+          setTenants(ts => ts.map(x => x.id === t.id ? ({ ...x, vacating: true }) : x));
+          toast.add('Tenant marked as vacating', 'success');
+        } catch (err) { toast.add(err.message, 'error'); }
+        return;
+      }
+      if (action === 'delete') {
+        if (!confirm(`Delete tenant ${t.name || t.id}? This cannot be undone.`)) return;
+        try {
+          await api(`/api/landlords/tenants/${t.id}`, { method: 'DELETE', token });
+          setTenants(ts => ts.filter(x => x.id !== t.id));
+          toast.add('Tenant deleted', 'success');
+        } catch (err) { toast.add(err.message, 'error'); }
+        return;
+      }
     } catch (err) { toast.add(err.message, 'error'); }
   };
 
@@ -874,16 +951,35 @@ function LandlordDashboard() {
               <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M4 7h16v10H4z" stroke="#5bc0be" strokeWidth="1.5"/><path d="M8 12h8" stroke="#5bc0be" strokeWidth="1.5"/></svg>
               <h3 className="card-title">Tenants</h3>
             </div>
-            {tenantsLoading ? (
+                {tenantsLoading ? (
               <div className="muted">Loading…</div>
-            ) : tenants.length === 0 ? (
+                ) : tenants.length === 0 ? (
               <div className="muted">No tenants to display.</div>
-            ) : (
+                ) : (
               <>
+                {/* Apartment filter + table */}
+                <div className="filters" style={{ marginBottom: 8 }}>
+                  <select value={tenantApartmentFilter} onChange={e=>setTenantApartmentFilter(e.target.value)}>
+                    <option value="">All apartments</option>
+                    {/* derive unique apartments from tenants */}
+                    {Array.from(new Map(tenants.map(tt => [tt.Apartment?.id || tt.apartmentId, tt.Apartment?.number || tt.apartmentId]))).map(([id, num]) => (
+                      <option key={id} value={id}>{num || id}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <table className="table">
                   <thead><tr><th>Name</th><th>Apartment</th><th>Estate</th><th>Last Payment</th><th>Status</th><th>Actions</th></tr></thead>
                   <tbody>
-                    {tenants.map(t => {
+                    {(tenants || []).filter(t => {
+                      if (!tenantApartmentFilter) return true;
+                      const aid = String(t.Apartment?.id || t.apartmentId || '');
+                      return aid === String(tenantApartmentFilter);
+                    }).sort((a,b) => {
+                      const an = (a.Apartment?.number || a.apartmentId || '').toString();
+                      const bn = (b.Apartment?.number || b.apartmentId || '').toString();
+                      return an.localeCompare(bn, undefined, { numeric: true, sensitivity: 'base' });
+                    }).map(t => {
                       const pays = Array.isArray(t.Payments) ? t.Payments : [];
                       let last = null;
                       for (const p of pays) {
@@ -892,14 +988,30 @@ function LandlordDashboard() {
                       }
                       const badge = last?.status === 'paid' ? 'ok' : (last?.status === 'late' ? 'warn' : 'info');
                       return (
-                        <tr key={t.id}>
-                          <td>{t.name || t.User?.name || '—'}</td>
-                          <td>{t.Apartment?.number || t.apartmentId || '—'}</td>
-                          <td>{t.Apartment?.Estate?.name || '—'}</td>
-                          <td>{last?.date ? new Date(last.date).toLocaleDateString() : '—'}</td>
-                          <td><span className={`badge ${badge}`}>{last?.status || 'n/a'}</span></td>
-                          <td><button className="btn" onClick={()=>viewTenantPayments(t)}>View Payments</button></td>
-                        </tr>
+                        <React.Fragment key={t.id}>
+                          <tr>
+                            <td>{t.name || t.User?.name || '—'}</td>
+                            <td>{t.Apartment?.number || t.apartmentId || '—'}</td>
+                            <td>{t.Apartment?.Estate?.name || '—'}</td>
+                            <td>{last?.date ? new Date(last.date).toLocaleDateString() : '—'}</td>
+                            <td><span className={`badge ${badge}`}>{last?.status || 'n/a'}</span></td>
+                            <td>
+                              <select className="form-select" defaultValue="" onChange={(e) => handleTenantAction(e, t)}>
+                                <option value="">Actions…</option>
+                                <option value="view">View Payments</option>
+                                <option value="mpesa">Initiate M-Pesa Push</option>
+                                <option value="vacate">Vacate (mark)</option>
+                                <option value="delete">Delete Tenant</option>
+                              </select>
+                            </td>
+                          </tr>
+
+                          {/* Additional row with apartment info (no delete here; actions are in dropdown) */}
+                          <tr className="muted small">
+                            <td colSpan={4}>Apartment: <strong>{t.Apartment?.number || t.apartmentId || '—'}</strong></td>
+                            <td colSpan={2} style={{ textAlign: 'right' }}>{t.vacating ? 'Vacating' : ''}</td>
+                          </tr>
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
@@ -935,6 +1047,23 @@ function LandlordDashboard() {
             )}
           </div>
         )}
+
+        {/* M-Pesa modal (opened when landlord chooses Initiate M-Pesa Push) */}
+        {mpesaModalOpen && (
+          <MPesaModal
+            open={mpesaModalOpen}
+            initialPhone={mpesaModalTenant?.phone || mpesaModalTenant?.User?.phone}
+            onClose={() => { setMpesaModalOpen(false); setMpesaModalTenant(null); setMpesaModalAptId(null); }}
+            onSubmit={async ({ amount, phone }) => {
+              try {
+                await initiateMpesaFromLandlord({ apartmentId: mpesaModalAptId, amount, phone });
+                toast.add('STK push initiated', 'info');
+              } catch (err) { toast.add(err.message, 'error'); }
+              setMpesaModalOpen(false); setMpesaModalTenant(null); setMpesaModalAptId(null);
+            }}
+          />
+        )}
+
         {activeTab==='reports' && (
           <div className="card">
             <div className="card-header">
@@ -1077,6 +1206,59 @@ function LandlordDashboard() {
             <ApartmentForm token={token} estates={estates} onCreated={(res) => {
               toast.add('Apartment created', 'success');
             }} />
+          </div>
+        )}
+        {activeTab==='add-tenant' && role==='landlord' && (
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">Add Tenant</h3>
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                if (!ltName.trim()) throw new Error('Name is required');
+                if (!newTenantAptId) throw new Error('Select an apartment');
+                const apt = newTenantApts.find(a => String(a.id) === String(newTenantAptId)) || {};
+                // Request server-generated tenant code; fall back to client-side generator on failure
+                let tenantCode;
+                try {
+                  const gen = await api('/api/landlords/tenants/generate-code', { method: 'POST', token, body: { apartmentId: newTenantAptId } });
+                  tenantCode = gen && gen.tenantCode ? gen.tenantCode : makeTenantCode(apt);
+                } catch (err) {
+                  tenantCode = makeTenantCode(apt);
+                }
+                const body = { name: ltName, idNumber: ltIdNumber, email: ltEmail, phone: ltPhone, apartmentId: newTenantAptId, tenantCode };
+                const created = await api('/api/landlords/tenants', { method: 'POST', token, body });
+                // backend should return created tenant; fall back to synthesized object
+                const toAdd = created || Object.assign({ id: Date.now() }, body, { Apartment: apt });
+                setTenants(ts => [toAdd, ...(ts || [])]);
+                setLlTenants(ll => [toAdd, ...(ll || [])]);
+                setLtName(''); setLtIdNumber(''); setLtEmail(''); setLtPhone(''); setNewTenantAptId(''); setNewTenantEstateId(''); setNewTenantApts([]);
+                toast.add(`Tenant added — ID ${tenantCode}`, 'success');
+              } catch (err) { toast.add(err.message, 'error'); }
+            }}>
+              <label htmlFor="newTenantEstate">Estate</label>
+              <select id="newTenantEstate" value={newTenantEstateId} onChange={e=>setNewTenantEstateId(e.target.value)}>
+                <option value="">Select an estate</option>
+                {estates.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
+              <label htmlFor="newTenantApt">Apartment</label>
+              <select id="newTenantApt" value={newTenantAptId} onChange={e=>setNewTenantAptId(e.target.value)} disabled={!newTenantEstateId}>
+                <option value="">Select apartment</option>
+                {newTenantApts.map(a => <option key={a.id} value={a.id}>{a.number || a.id}</option>)}
+              </select>
+              <label htmlFor="ltName">Name</label>
+              <input id="ltName" value={ltName} onChange={e=>setLtName(e.target.value)} />
+              <label htmlFor="ltIdNumber">ID Number</label>
+              <input id="ltIdNumber" value={ltIdNumber} onChange={e=>setLtIdNumber(e.target.value)} />
+              <label htmlFor="ltPhone">Phone</label>
+              <input id="ltPhone" value={ltPhone} onChange={e=>setLtPhone(e.target.value)} />
+              <label htmlFor="ltEmail">Email</label>
+              <input id="ltEmail" value={ltEmail} onChange={e=>setLtEmail(e.target.value)} />
+              <div style={{ marginTop:8 }}>
+                <button className="btn">Admit Tenant</button>
+              </div>
+            </form>
           </div>
         )}
         {activeTab==='assign' && (

@@ -18,19 +18,23 @@ describe('Socket.IO auth', () => {
     baseUrl = `http://localhost:${port}`;
   });
   afterAll(async () => {
-    try { await server.close(); } catch {};
-    try { await sequelize.close(); } catch {};
+    try {
+      if (server && typeof server.close === 'function') {
+        await new Promise((resolve, reject) => server.close(err => err ? reject(err) : resolve()));
+      }
+    } catch (e) {}
+    try { await sequelize.close(); } catch (e) {}
   });
 
   test('connection without token should fail', (done) => {
     const socket = ioClient(baseUrl, { transports: ['polling','websocket'], reconnection: false });
+    const to = setTimeout(() => { try { socket.close(); } catch {} ; done(new Error('connect did not error fast enough')); }, 10000);
     socket.on('connect_error', (err) => {
+      clearTimeout(to);
       expect(err).toBeDefined();
       socket.close();
       done();
     });
-    // safety timeout
-    setTimeout(() => { try { socket.close(); } catch {} ; done(new Error('connect did not error fast enough')); }, 10000);
   });
 
   test('connection with valid token should succeed', (done) => {
@@ -44,12 +48,13 @@ describe('Socket.IO auth', () => {
       socket.on('connect', () => {
         try {
           expect(socket.connected).toBeTruthy();
+          clearTimeout(to);
           socket.close();
           done();
         } catch (err) { socket.close(); done(err); }
       });
       socket.on('connect_error', (err) => { socket.close(); done(err || new Error('connect_error')); });
-  setTimeout(() => { try { socket.close(); } catch {} ; done(new Error('connect did not occur quickly')); }, 10000);
+      const to = setTimeout(() => { try { socket.close(); } catch {} ; done(new Error('connect did not occur quickly')); }, 10000);
     }).catch(done);
   });
 });

@@ -17,5 +17,37 @@ button.btn:focus:not(:focus-visible),
 	box-shadow: none;
 }
 
+/* Modal styles for MPesaModal */
+.modal-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0,0,0,0.45);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 2000;
+}
+.modal-dialog {
+	background: #fff;
+	padding: 18px;
+	border-radius: 8px;
+	width: 380px;
+	max-width: 94%;
+	box-shadow: 0 6px 24px rgba(2,6,23,0.3);
+	position: relative;
+}
+.modal-dialog input { width: 100%; padding: 8px; margin-top: 6px; margin-bottom: 6px; box-sizing: border-box; }
+.field-error { color: #b91c1c; font-size: 13px; margin-top: 4px; }
+
+/* accessibility helpers */
+.visually-hidden { position: absolute !important; height: 1px; width: 1px; overflow: hidden; clip: rect(1px, 1px, 1px, 1px); white-space: nowrap; }
+
+/* visible focus ring for keyboard users */
+input:focus, textarea:focus, select:focus, button:focus {
+	outline: none;
+	box-shadow: 0 0 0 3px rgba(91,192,190,0.25);
+	border-radius: 6px;
+}
+
 /* Remove mobile tap highlight */
 button, .btn { -webkit-tap-highlight-color: transparent; }

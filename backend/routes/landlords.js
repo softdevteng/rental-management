@@ -313,6 +313,51 @@ router.get('/tenants', auth, async (req, res) => {
   res.json(tenants);
 });
 
+// Generate a unique tenant code for an apartment (landlord only)
+router.post('/tenants/generate-code', auth, async (req, res) => {
+  if (req.user.role !== 'landlord') return res.status(403).json({ error: 'Forbidden' });
+  const { apartmentId } = req.body || {};
+  if (!apartmentId) return res.status(400).json({ error: 'apartmentId required' });
+  const apt = await models.Apartment.findByPk(apartmentId, { include: [models.Estate] });
+  if (!apt) return res.status(404).json({ error: 'Apartment not found' });
+  // ensure landlord owns the estate
+  const est = await models.Estate.findByPk(apt.estateId);
+  if (!est || String(est.landlordId) !== String(req.user.refId)) return res.status(403).json({ error: 'Not your apartment' });
+
+  // Compute prefix similar to client makeTenantCode
+  const base = String(apt.number || apt.name || '').trim();
+  const words = base.split(/\s+/).filter(Boolean);
+  let prefix = '';
+  if (words.length === 0) prefix = (String(base).slice(0,2) || 'TN').toUpperCase();
+  else if (words.length === 1) prefix = (words[0].slice(0,2)).toUpperCase();
+  else prefix = (words[0][0] + words[1][0]).toUpperCase();
+
+  // Find existing tenant codes starting with prefix and compute next sequence
+  // Use a transaction to reduce race window
+  const sequelize = require('../db').sequelize;
+  try {
+    const next = await sequelize.transaction(async (tx) => {
+      const { QueryTypes } = require('sequelize');
+      // Count tenant codes starting with prefix
+      const rows = await sequelize.query(
+        "SELECT tenantCode FROM Tenants WHERE tenantCode LIKE :p",
+        { replacements: { p: `${prefix}%` }, type: QueryTypes.SELECT, transaction: tx }
+      );
+      const seq = (rows || []).length + 1;
+      const code = `${prefix}${String(seq).padStart(3, '0')}`;
+      // Ensure uniqueness - if exists, bump until free (rare)
+      let final = code; let i = seq;
+      const existing = new Set((rows||[]).map(r => String(r.tenantCode || '')));
+      while (existing.has(final)) { i++; final = `${prefix}${String(i).padStart(3,'0')}`; }
+      return final;
+    });
+    res.json({ tenantCode: next });
+  } catch (err) {
+    console.error('generate-code error', err);
+    res.status(500).json({ error: 'Could not generate tenant code' });
+  }
+});
+
 // Create tenant (landlord only) - minimal fields
 router.post('/tenants', auth, async (req, res) => {
   if (req.user.role !== 'landlord') return res.status(403).json({ error: 'Forbidden' });

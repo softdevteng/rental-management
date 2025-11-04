@@ -1,7 +1,10 @@
 const { Sequelize, DataTypes } = require('sequelize');
 
 // Support in-memory sqlite for tests (set NODE_ENV=test or USE_SQLITE_IN_MEMORY=true)
-const useSqlite = String(process.env.USE_SQLITE_IN_MEMORY || '').toLowerCase() === 'true' || process.env.NODE_ENV === 'test';
+// Allow forcing MySQL in CI by setting FORCE_MYSQL=true. This lets CI run tests
+// against a real MySQL service even though Jest sets NODE_ENV=test locally.
+const forceMysql = String(process.env.FORCE_MYSQL || '').toLowerCase() === 'true';
+const useSqlite = !forceMysql && (String(process.env.USE_SQLITE_IN_MEMORY || '').toLowerCase() === 'true' || process.env.NODE_ENV === 'test');
 let sequelize;
 if (useSqlite) {
   sequelize = new Sequelize({ dialect: 'sqlite', storage: ':memory:', logging: false });
@@ -33,6 +36,7 @@ const Tenant = sequelize.define('Tenant', {
   name: DataTypes.STRING,
   idNumber: DataTypes.STRING,
   email: { type: DataTypes.STRING, unique: true },
+  tenantCode: { type: DataTypes.STRING, unique: true },
   password: DataTypes.STRING,
   phone: DataTypes.STRING,
   photoUrl: DataTypes.STRING,
