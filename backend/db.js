@@ -102,6 +102,15 @@ const Notice = sequelize.define('Notice', {
   createdAt: { type: DataTypes.DATE, defaultValue: Sequelize.NOW },
 });
 
+// Historical occupancy snapshots to track occupied/vacant state over time
+const OccupancyHistory = sequelize.define('OccupancyHistory', {
+  apartmentId: DataTypes.INTEGER,
+  estateId: DataTypes.INTEGER,
+  tenantId: DataTypes.INTEGER,
+  status: { type: DataTypes.ENUM('occupied','vacant'), defaultValue: 'vacant' },
+  recordedAt: { type: DataTypes.DATE, defaultValue: Sequelize.NOW },
+});
+
 // Expenses (operational costs, repairs, utilities etc.)
 const Expense = sequelize.define('Expense', {
   amount: DataTypes.DECIMAL(10,2),
@@ -160,6 +169,41 @@ Expense.belongsTo(Estate, { foreignKey: 'estateId' });
 Landlord.hasMany(Expense, { foreignKey: 'landlordId' });
 Expense.belongsTo(Landlord, { foreignKey: 'landlordId' });
 
+// Occupancy history associations
+Apartment.hasMany(OccupancyHistory, { foreignKey: 'apartmentId' });
+OccupancyHistory.belongsTo(Apartment, { foreignKey: 'apartmentId' });
+Estate.hasMany(OccupancyHistory, { foreignKey: 'estateId' });
+OccupancyHistory.belongsTo(Estate, { foreignKey: 'estateId' });
+Tenant.hasMany(OccupancyHistory, { foreignKey: 'tenantId' });
+OccupancyHistory.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
+// Hook: when an apartment's tenant assignment changes, create an occupancy snapshot
+Apartment.addHook('afterUpdate', async (apartment, options) => {
+  try {
+    // previous() is available on instances to check prior value
+    const prevTenant = apartment.previous('tenantId');
+    const newTenant = apartment.tenantId;
+    if (prevTenant === newTenant) return;
+
+    const status = newTenant ? 'occupied' : 'vacant';
+    // create a snapshot record; prefer transaction if provided
+    const createOpts = {};
+    if (options && options.transaction) createOpts.transaction = options.transaction;
+
+    await OccupancyHistory.create({
+      apartmentId: apartment.id,
+      estateId: apartment.estateId,
+      tenantId: newTenant || null,
+      status,
+      recordedAt: new Date(),
+    }, createOpts);
+  } catch (err) {
+    // Don't throw; occupancy history is optional. Log for diagnostics.
+    // eslint-disable-next-line no-console
+    console.warn('Failed to write OccupancyHistory snapshot:', err && err.message ? err.message : err);
+  }
+});
+
 let connected = false;
 async function connectAndSync() {
   await sequelize.authenticate();
@@ -173,7 +217,7 @@ module.exports = {
   sequelize,
   Sequelize,
   DataTypes,
-  models: { User, Tenant, Landlord, Estate, Apartment, Ticket, Payment, Notice, Caretaker, CaretakerInvite, Expense },
+  models: { User, Tenant, Landlord, Estate, Apartment, Ticket, Payment, Notice, Caretaker, CaretakerInvite, Expense, OccupancyHistory },
   connectAndSync,
   dbHealth,
 };

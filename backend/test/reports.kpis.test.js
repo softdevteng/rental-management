@@ -44,6 +44,16 @@ test('kpis endpoint returns turnover, occupancyTrend, and expenseSummary', async
     await models.Expense.create({ amount: 75, date: lastMonth, category: 'utilities', estateId: estate.id, landlordId: landlord.id });
   }
 
+  // seed occupancy history if supported
+  if (models.OccupancyHistory) {
+    // two months ago: apt1 occupied, apt2 vacant
+    await models.OccupancyHistory.create({ apartmentId: apt1.id, estateId: estate.id, tenantId: t1.id, status: 'occupied', recordedAt: twoMonthsAgo });
+    await models.OccupancyHistory.create({ apartmentId: apt2.id, estateId: estate.id, tenantId: null, status: 'vacant', recordedAt: twoMonthsAgo });
+    // last month: apt1 occupied, apt2 occupied
+    await models.OccupancyHistory.create({ apartmentId: apt1.id, estateId: estate.id, tenantId: t1.id, status: 'occupied', recordedAt: lastMonth });
+    await models.OccupancyHistory.create({ apartmentId: apt2.id, estateId: estate.id, tenantId: t2.id, status: 'occupied', recordedAt: lastMonth });
+  }
+
   const user = await models.User.create({ email: 'u@ld.com', password: 'x', role: 'landlord', refId: landlord.id });
   const jwt = require('jsonwebtoken');
   const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET || 'secretkey');

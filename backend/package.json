@@ -6,6 +6,8 @@
     "start": "node index.js",
     "dev": "cross-env USE_SQLITE_IN_MEMORY=true node index.js",
     "test": "jest --runInBand",
+  "migrate": "node scripts/create-expense-table.js",
+  "migrate:occupancy": "node scripts/create-occupancy-history-table.js",
     "smoke": "node scripts/smoke.js",
     "smoke:caretaker": "node scripts/smoke-caretaker.js",
     "purge:samples": "node scripts/purge-sample.js"

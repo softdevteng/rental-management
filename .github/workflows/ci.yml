@@ -47,6 +47,13 @@ jobs:
       - name: Install backend deps
         run: npm ci --prefix backend
 
+      - name: Run backend migrations (Expense, OccupancyHistory)
+        run: |
+          cd backend
+          # ensure migrations run against MySQL in CI
+          FORCE_MYSQL=true npm run migrate
+          FORCE_MYSQL=true npm run migrate:occupancy
+
       - name: Run backend tests
         run: |
           cd backend

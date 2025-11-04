@@ -127,10 +127,24 @@ router.get('/kpis', auth, async (req, res) => {
     return { month: m.key, newTenants, vacated };
   });
 
-  // Occupancy trend: percent occupied per month (best-effort using current assignment)
+  // Occupancy trend: prefer historical OccupancyHistory when available, otherwise fall back
   const totalUnits = apartments.length;
-  const occupiedNow = apartments.filter(a => a.tenantId).length;
-  const occupancyTrend = months.map(m => ({ month: m.key, totalUnits, occupied: occupiedNow, occupancyPct: totalUnits ? Math.round((occupiedNow/totalUnits)*100) : 0 }));
+  let occupancyTrend;
+  if (models.OccupancyHistory) {
+    const histories = await models.OccupancyHistory.findAll();
+    occupancyTrend = months.map(m => {
+      // Count apartments recorded as occupied in that month
+      const occupied = histories.filter(h => {
+        const d = new Date(h.recordedAt || h.createdAt || Date.now());
+        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        return key === m.key && h.status === 'occupied';
+      }).map(h => h.apartmentId).filter((v,i,a)=>a.indexOf(v)===i).length;
+      return { month: m.key, totalUnits, occupied, occupancyPct: totalUnits ? Math.round((occupied/totalUnits)*100) : 0 };
+    });
+  } else {
+    const occupiedNow = apartments.filter(a => a.tenantId).length;
+    occupancyTrend = months.map(m => ({ month: m.key, totalUnits, occupied: occupiedNow, occupancyPct: totalUnits ? Math.round((occupiedNow/totalUnits)*100) : 0 }));
+  }
 
   // Expense summary: aggregate expense totals and monthly series (if Expense model available)
   const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
