@@ -21,7 +21,7 @@ jest.mock('../lib/api', () => ({ api: (path) => {
 test('navigates to Estate Dashboard and renders widgets', async () => {
   // simulate authenticated landlord so RequireAuth allows /dashboard
   localStorage.setItem('token', 'tok');
-  localStorage.setItem('role', 'landlord');
+  localStorage.setItem('role', 'owner');
   // navigate to dashboard route before rendering
   window.history.pushState({}, 'Test page', '/dashboard');
   render(<App />);

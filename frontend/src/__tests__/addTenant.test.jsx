@@ -31,11 +31,11 @@ describe('Add Tenant flow (server-generated tenantCode)', () => {
       return Promise.resolve([]);
     });
 
-    // Set auth state as landlord before rendering
+    // Set auth state as owner before rendering
     localStorage.setItem('token', 'fake-token');
-    localStorage.setItem('role', 'landlord');
-    // Ensure we're on the landlord route
-    window.history.pushState({}, 'Landlord', '/landlord');
+    localStorage.setItem('role', 'owner');
+    // Ensure we're on the owner route
+    window.history.pushState({}, 'Owner', '/landlord');
   });
 
   afterEach(() => {

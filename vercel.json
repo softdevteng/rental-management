@@ -1,5 +1,0 @@
-{
-  "version": 2,
-  "deprecated": true,
-  "note": "Vercel config retained for reference. Active deployment manifests were removed in favor of CI-driven testing and documented deployment steps in README.md."
-}

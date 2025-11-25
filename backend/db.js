@@ -26,7 +26,8 @@ if (useSqlite) {
 const User = sequelize.define('User', {
   email: { type: DataTypes.STRING, unique: true, allowNull: false },
   password: { type: DataTypes.STRING, allowNull: false },
-  role: { type: DataTypes.ENUM('tenant','landlord','caretaker'), allowNull: false },
+  // support both legacy role names and new display names (owner/property_manager)
+  role: { type: DataTypes.ENUM('tenant','landlord','caretaker','owner','property_manager'), allowNull: false },
   refId: { type: DataTypes.INTEGER, allowNull: true },
   passwordResetToken: { type: DataTypes.STRING },
   passwordResetExpires: { type: DataTypes.DATE },

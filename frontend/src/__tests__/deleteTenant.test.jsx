@@ -23,8 +23,8 @@ describe('Delete Tenant flow (frontend)', () => {
     });
 
     localStorage.setItem('token', 'fake');
-    localStorage.setItem('role', 'landlord');
-    window.history.pushState({}, 'Landlord', '/landlord');
+    localStorage.setItem('role', 'owner');
+    window.history.pushState({}, 'Owner', '/landlord');
   });
 
   afterEach(() => { localStorage.clear(); jest.restoreAllMocks(); });

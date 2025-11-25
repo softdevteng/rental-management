@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { api } from '../lib/api';
+import { displayRole, isOwner, isPropertyManager } from '../lib/roles';
 import './styles.css';
 import './route.css';
+import ThemeSwitcher from './ThemeSwitcher';
 
 export default function Layout({ children }) {
   const { token, role, logout } = useAuth();
@@ -18,12 +20,12 @@ export default function Layout({ children }) {
         if (role === 'tenant') {
           const me = await api('/api/tenants/me', { token });
           setDisplayName(me?.name || 'Tenant'); setPhotoUrl(me?.photoUrl || '');
-        } else if (role === 'landlord') {
+        } else if (isOwner(role)) {
           const me = await api('/api/landlords/me', { token });
-          setDisplayName(me?.name || 'Landlord'); setPhotoUrl(me?.photoUrl || '');
-        } else if (role === 'caretaker') {
+          setDisplayName(me?.name || displayRole(role)); setPhotoUrl(me?.photoUrl || '');
+        } else if (isPropertyManager(role)) {
           const me = await api('/api/landlords/caretakers/me', { token });
-          setDisplayName(me?.name || 'Caretaker'); setPhotoUrl(me?.photoUrl || '');
+          setDisplayName(me?.name || displayRole(role)); setPhotoUrl(me?.photoUrl || '');
         }
       } catch {
         setDisplayName('');
@@ -78,9 +80,9 @@ export default function Layout({ children }) {
           <Link to="/">Home</Link>
           {token && (
             <>
-              <Link to={role==='tenant'? '/tenant' : role==='landlord'? '/landlord' : '/caretaker'}>Dashboard</Link>
+              <Link to={role==='tenant'? '/tenant' : (isOwner(role) || isPropertyManager(role)) ? '/landlord' : '/tenant'}>Dashboard</Link>
               {/* New unified dashboard for estate-level KPIs */}
-              {(role === 'landlord' || role === 'caretaker') && (
+              {(isOwner(role) || isPropertyManager(role)) && (
                 <Link to="/dashboard">Estate Dashboard</Link>
               )}
             </>
@@ -99,18 +101,19 @@ export default function Layout({ children }) {
               </svg>
             )}
           </button>
+          <ThemeSwitcher />
           {!token ? (
             <Link to="/signin">Sign In</Link>
           ) : (
             <>
-              <Link to={role==='tenant'? '/tenant' : '/landlord'} state={{ openProfile:true }} className="profile-chip" title={displayName}>
+                <Link to={role==='tenant'? '/tenant' : '/landlord'} state={{ openProfile:true }} className="profile-chip" title={displayName}>
                 {photoUrl ? (
                   <img src={photoUrl} alt="avatar" className="avatar-mini" style={{ objectFit:'cover' }} onError={(e)=>{ e.currentTarget.style.display='none'; }} />
                 ) : (
                   <div className="avatar-mini">{initials || 'U'}</div>
                 )}
                 <span className="profile-name">{displayName}</span>
-                <span className="badge info" style={{ marginLeft:6, textTransform:'capitalize' }}>{role}</span>
+                <span className="badge info" style={{ marginLeft:6, textTransform:'capitalize' }}>{displayRole(role)}</span>
               </Link>
               <button className="btn" onClick={confirmAndLogout}>Logout</button>
             </>

@@ -8,6 +8,7 @@
     "test": "jest --runInBand",
   "migrate": "node scripts/create-expense-table.js",
   "migrate:occupancy": "node scripts/create-occupancy-history-table.js",
+  "migrate:add-role-aliases": "node scripts/add-role-aliases.js",
     "smoke": "node scripts/smoke.js",
     "smoke:caretaker": "node scripts/smoke-caretaker.js",
     "purge:samples": "node scripts/purge-sample.js"

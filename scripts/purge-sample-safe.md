@@ -8,7 +8,7 @@ Prerequisites
 - `ALLOW_PURGE=true` is set in `backend/.env` to enable purge scripts.
 
 Steps
-1) Confirm environment
+1) Confirm environmen/. 0201 GHYU87*+-.
 
 ```powershell
 # from repository root

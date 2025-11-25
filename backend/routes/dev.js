@@ -2,12 +2,13 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const { models } = require('../db');
+const roles = require('../utils/roles');
 
 // Dev-only: Seed some sample data so dashboards show content
 router.post('/seed-basic', auth, async (req, res) => {
   try {
     if (process.env.ENABLE_DEV_ROUTES !== 'true') return res.status(403).json({ error: 'Dev routes disabled' });
-    if (req.user.role !== 'landlord') return res.status(403).json({ error: 'Landlord token required' });
+    if (!roles.isOwner(req.user.role)) return res.status(403).json({ error: 'Owner token required' });
 
     const landlord = await models.Landlord.findByPk(req.user.refId);
     if (!landlord) return res.status(400).json({ error: 'Landlord profile missing' });

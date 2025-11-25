@@ -3,15 +3,18 @@ import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate, useLocation 
 import { api } from './lib/api';
 import { AuthProvider, useAuth } from './lib/auth';
 import { useRealtime } from './lib/useRealtime';
+import { displayRole, isOwner, isPropertyManager } from './lib/roles';
 import Layout from './components/Layout';
 import QuickPay from './components/landlord/QuickPay';
 import InviteCaretaker from './components/landlord/InviteCaretaker';
 import AssignCaretaker from './components/landlord/AssignCaretaker';
+import ManageCaretakers from './components/landlord/ManageCaretakers';
 import RecordPayment from './components/landlord/RecordPayment';
 import ApartmentForm from './components/landlord/ApartmentForm';
 import DashboardOverview from './components/DashboardOverview';
 import DashboardPage from './components/dashboard/DashboardPage';
 import Sidebar from './components/Sidebar';
+import ExpensesPage from './components/expenses/ExpensesPage';
 import MPesaModal from './components/landlord/MPesaModal';
 
 // Simple Toast system (with optional action button)
@@ -63,7 +66,7 @@ function TenantDashboard() {
   const [ticketTo, setTicketTo] = React.useState('');
   const [me, setMe] = React.useState(null);
   // Show overview first for landlords when applicable
-  const [activeTab, setActiveTab] = React.useState(role === 'landlord' ? 'overview' : 'notices');
+  const [activeTab, setActiveTab] = React.useState(isOwner(role) ? 'overview' : 'notices');
   // Sidebar is always visible; no toggle per requirements
 
   React.useEffect(() => {
@@ -94,7 +97,7 @@ function TenantDashboard() {
       try {
         const id = data && data.id; const status = data && data.status;
         if (!id) return;
-        if (payments.some(p => String(p.id) === String(id))) {
+        if (Array.isArray(payments) && payments.some(p => String(p.id) === String(id))) {
           try { const pay = await api('/api/tenants/payments', { token }); setPayments(pay); } catch {}
         }
         toast.add(`Payment ${id} updated: ${status}`, status === 'paid' ? 'success' : 'info');
@@ -140,7 +143,8 @@ function TenantDashboard() {
   }, [initialized]);
 
   const filteredTickets = React.useMemo(() => {
-    return tickets.filter(t => {
+    const list = Array.isArray(tickets) ? tickets : [];
+    return list.filter(t => {
       const q = ticketFilter.toLowerCase();
       const textOk = q ? (t.description || '').toLowerCase().includes(q) : true;
       const statusOk = ticketStatus ? t.status === ticketStatus : true;
@@ -152,6 +156,7 @@ function TenantDashboard() {
   }, [tickets, ticketFilter, ticketStatus, ticketFrom, ticketTo]);
 
   const scopedKPIs = React.useMemo(() => kpis, [kpis]);
+  const paymentsList = Array.isArray(payments) ? payments : [];
 
   const raiseTicket = async (e) => {
     e.preventDefault(); setLoading(true);
@@ -190,16 +195,25 @@ function TenantDashboard() {
         onChange={(id) => setActiveTab(id)}
       />
       <section className="content">
-  <h2 className="section-title compact">Welcome, {me?.name || 'Tenant'}</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 22, letterSpacing: '-0.3px' }}>Welcome, {me?.name || 'Tenant'}</h2>
+            <div style={{ color: '#6b7280', fontSize: 13 }}>Quick actions and recent updates</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn">Pay Rent</button>
+            <button className="btn classic">Raise Ticket</button>
+          </div>
+        </div>
         {/* Overview */}
         <div className="grid" style={{ marginBottom:12 }}>
           <div className="card card-appear">
             <h3>Rent status</h3>
             <div className="gauge">
-              {(() => { const total = payments.length||1; const paid = payments.filter(p=>p.status==='paid').length; const pct = Math.round((paid/total)*100); const r=28; const c=2*Math.PI*r; const off = c*(1-pct/100); return (
+              {(() => { const total = paymentsList.length||1; const paid = paymentsList.filter(p=>p.status==='paid').length; const pct = Math.round((paid/total)*100); const r=28; const c=2*Math.PI*r; const off = c*(1-pct/100); return (
                 <svg viewBox="0 0 80 80"><circle className="ring" cx="40" cy="40" r="28" fill="none" strokeWidth="8"/><circle className="meter" cx="40" cy="40" r="28" fill="none" strokeWidth="8" strokeDasharray={c} strokeDashoffset={off} strokeLinecap="round"/></svg>
               ); })()}
-              <div><div className="muted">Paid</div><div className="val"><strong>{payments.filter(p=>p.status==='paid').length}</strong> / {payments.length||0}</div></div>
+              <div><div className="muted">Paid</div><div className="val"><strong>{paymentsList.filter(p=>p.status==='paid').length}</strong> / {paymentsList.length||0}</div></div>
             </div>
           </div>
           <div className="card card-appear">
@@ -384,7 +398,18 @@ function TenantDashboard() {
 
 function RequireAuth({ role, children }) {
   const { token, role: myRole } = useAuth();
-  const allowed = Array.isArray(role) ? role.includes(myRole) : (role ? myRole === role : true);
+  const roleMatches = (required, current) => {
+    if (!required) return true;
+    const check = (r) => {
+      if (r === 'landlord') return isOwner(current) || current === 'landlord';
+      if (r === 'caretaker') return isPropertyManager(current) || current === 'caretaker';
+      if (r === 'tenant') return current === 'tenant';
+      return current === r;
+    };
+    if (Array.isArray(required)) return required.some(check);
+    return check(required);
+  };
+  const allowed = roleMatches(role, myRole);
   if (!token) return <Navigate to="/signin" replace />;
   if (!allowed) return <Navigate to="/" replace />;
   return children;
@@ -525,15 +550,15 @@ function LandlordDashboard() {
         const all = await api('/api/tickets', { token });
         setTickets(all);
         try {
-          if (role === 'landlord') {
+          if (isOwner(role)) {
             const m = await api('/api/landlords/me', { token });
-            setMe(m); setEstates(m?.Estates || []); setDisplayName(m?.name || 'Landlord');
+            setMe(m); setEstates(m?.Estates || []); setDisplayName(m?.name || displayRole(role));
           }
         } catch { setEstates([]); }
-        if (role === 'caretaker') {
+        if (isPropertyManager(role)) {
           try {
             const meCt = await api('/api/landlords/caretakers/me', { token });
-            setMe(meCt); setDisplayName(meCt?.name || 'Caretaker');
+            setMe(meCt); setDisplayName(meCt?.name || displayRole(role));
             if (meCt?.apartmentId) setPayAptId(String(meCt.apartmentId));
           } catch {}
         }
@@ -620,7 +645,7 @@ function LandlordDashboard() {
 
   // Lazy-load tenants when Tenants, Delete Tenant, or Assign Tenant tab is opened
   React.useEffect(() => {
-    if (!['tenants','delete-tenant','assign-tenant'].includes(activeTab) || role !== 'landlord') return;
+    if (!['tenants','delete-tenant','assign-tenant'].includes(activeTab) || !isOwner(role)) return;
     (async () => {
       try {
         setTenantsLoading(true);
@@ -672,9 +697,9 @@ function LandlordDashboard() {
   const deleteCaretaker = async (e) => {
     e.preventDefault();
     try {
-      if (!deleteCaretakerId) throw new Error('Caretaker ID required');
+      if (!deleteCaretakerId) throw new Error('Property Manager ID required');
       await api(`/api/landlords/caretakers/${deleteCaretakerId}`, { method:'DELETE', token });
-      toast.add('Caretaker deleted', 'success');
+      toast.add('Property Manager deleted', 'success');
       setDeleteCaretakerId('');
     } catch (err) { toast.add(err.message, 'error'); }
   };
@@ -832,12 +857,14 @@ function LandlordDashboard() {
           { id: 'add-apartment', label: 'Add Apartment' },
           { id: 'add-tenant', label: 'Add Tenant' },
           { id: 'tenants', label: 'Tenants' },
-          { id: 'invite', label: 'Invite Caretaker' },
-          { id: 'assign', label: 'Assign Caretaker' },
+          { id: 'invite', label: 'Invite Property Manager' },
+          { id: 'caretakers', label: 'Manage Property Managers' },
+          { id: 'assign', label: 'Assign Property Manager' },
           { id: 'assign-tenant', label: 'Assign Tenant' },
           { id: 'record', label: 'Record Payment' },
           { id: 'payments', label: 'Payments' },
           { id: 'reports', label: 'Reports' },
+          { id: 'expenses', label: 'Expenses' },
           { id: 'reminders', label: 'Reminders' },
           { id: 'delete-tenant', label: 'Delete Tenant' },
           { id: 'delete-estate', label: 'Delete Estate' },
@@ -848,13 +875,18 @@ function LandlordDashboard() {
         onChange={(id) => setActiveTab(id)}
       />
       <section className="content">
-  <div className="flex items-center justify-between gap-3 md:gap-6">
-    <div>
-      <h2 className="section-title compact mb-0 text-lg md:text-2xl">Welcome, {displayName || (role==='caretaker' ? 'Caretaker' : 'Landlord')}</h2>
-      <p className="muted text-sm md:text-base">Manage properties, tenants and payments</p>
-    </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 22 }}>{displayName || displayRole(role)}</h2>
+            <div style={{ color: '#6b7280', fontSize: 13 }}>Owner dashboard — properties, tenants, and reports</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn">New Estate</button>
+            <button className="btn classic">Invite Manager</button>
+          </div>
+        </div>
 
-    <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3">
       <div className="hidden md:flex items-center space-x-3">
         <div className="px-3 py-2 bg-slate-50 rounded-lg border">
           <div className="text-xs text-slate-400">Open Tickets</div>
@@ -880,14 +912,12 @@ function LandlordDashboard() {
         </div>
 
         <div className="flex flex-col leading-tight">
-          <strong className="text-sm">{me?.name || displayName || (role==='caretaker'?'Caretaker':'Landlord')}</strong>
+          <strong className="text-sm">{me?.name || displayName || displayRole(role)}</strong>
           <span className="muted text-xs">{role}</span>
         </div>
 
         {/* Edit button removed as requested */}
       </div>
-    </div>
-  </div>
           {/* Recent Activity */}
           <div className="card" style={{ margin:'12px 0' }}>
             <div className="card-header">
@@ -905,6 +935,7 @@ function LandlordDashboard() {
               </div>
             </div>
           </div>
+        </div>
         {activeTab==='overview' && (
           <DashboardOverview
             role={role}
@@ -946,7 +977,7 @@ function LandlordDashboard() {
             </div>
           </>
         )}
-        {activeTab==='tenants' && role==='landlord' && (
+        {activeTab==='tenants' && isOwner(role) && (
           <div className="card card-appear">
             <div className="card-header">
               <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M4 7h16v10H4z" stroke="#5bc0be" strokeWidth="1.5"/><path d="M8 12h8" stroke="#5bc0be" strokeWidth="1.5"/></svg>
@@ -1088,7 +1119,16 @@ function LandlordDashboard() {
             )}
           </div>
         )}
-        {activeTab==='system' && role==='landlord' && (
+        {activeTab==='expenses' && (
+          <div className="card">
+            <div className="card-header">
+              <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v16H4z" stroke="#5bc0be" strokeWidth="1.5"/><path d="M8 14l2-2 3 3 3-4" stroke="#5bc0be" strokeWidth="1.5"/></svg>
+              <h3 className="card-title">Expenses</h3>
+            </div>
+            <ExpensesPage />
+          </div>
+        )}
+        {activeTab==='system' && isOwner(role) && (
           <div className="card">
             <div className="card-header">
               <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M4 7h16v10H4z" stroke="#5bc0be" strokeWidth="1.5"/><path d="M12 7v6" stroke="#5bc0be" strokeWidth="1.5"/></svg>
@@ -1100,7 +1140,8 @@ function LandlordDashboard() {
                 <p className="muted">Download a JSON export of your data.</p>
                 <button className="btn" onClick={async ()=>{
                   try {
-                    const res = await fetch((process.env.REACT_APP_API_BASE||'') + '/api/admin/backup', { headers:{ Authorization: `Bearer ${token}` } });
+                    const base = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_BASE) || '';
+                    const res = await fetch((base || '') + '/api/admin/backup', { headers:{ Authorization: `Bearer ${token}` } });
                     const blob = await res.blob();
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a'); a.href = url; a.download = 'rms-backup.json'; a.click(); URL.revokeObjectURL(url);
@@ -1117,7 +1158,8 @@ function LandlordDashboard() {
                     try {
                       const text = await file.text();
                       const body = JSON.parse(text);
-                      const res = await fetch((process.env.REACT_APP_API_BASE||'') + '/api/admin/restore?confirm=true', { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` }, body: JSON.stringify(body) });
+                      const base = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_BASE) || '';
+                      const res = await fetch((base || '') + '/api/admin/restore?confirm=true', { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` }, body: JSON.stringify(body) });
                       if (!res.ok) { const msg = await res.text(); throw new Error(msg || 'Restore failed'); }
                       alert('Restore complete');
                     } catch (err) { alert(err.message); }
@@ -1202,14 +1244,14 @@ function LandlordDashboard() {
             </form>
           </div>
         )}
-        {activeTab==='add-apartment' && role==='landlord' && (
+        {activeTab==='add-apartment' && isOwner(role) && (
           <div className="card">
             <ApartmentForm token={token} estates={estates} onCreated={(res) => {
               toast.add('Apartment created', 'success');
             }} />
           </div>
         )}
-        {activeTab==='add-tenant' && role==='landlord' && (
+        {activeTab==='add-tenant' && isOwner(role) && (
           <div className="card">
             <div className="card-header">
               <h3 className="card-title">Add Tenant</h3>
@@ -1265,12 +1307,12 @@ function LandlordDashboard() {
         {activeTab==='assign' && (
           <div className="card">
             <AssignCaretaker token={token} estates={estates} onAssigned={() => {
-              toast.add('Caretaker assigned', 'success');
+              toast.add('Property Manager assigned', 'success');
               setAssignEstateId('');
             }} />
           </div>
         )}
-        {activeTab==='assign-tenant' && role==='landlord' && (
+        {activeTab==='assign-tenant' && isOwner(role) && (
           <div className="card">
             <div className="card-header">
               <svg className="icon" viewBox="0 0 24 24" fill="none"><path d="M12 4v16M4 12h16" stroke="#5bc0be" strokeWidth="1.5"/></svg>
@@ -1319,20 +1361,25 @@ function LandlordDashboard() {
         )}
         {activeTab==='delete' && (
           <div className="card">
-            <h3>Delete Caretaker</h3>
+            <h3>Delete Property Manager</h3>
             <form onSubmit={deleteCaretaker}>
-              <label>Caretaker ID</label>
+              <label>Property Manager ID</label>
               <input value={deleteCaretakerId} onChange={e=>setDeleteCaretakerId(e.target.value)} placeholder="e.g. 1" />
               <button className="btn">Delete</button>
             </form>
           </div>
         )}
-        {activeTab==='invite' && role==='landlord' && (
+        {activeTab==='invite' && isOwner(role) && (
           <div className="card">
             <InviteCaretaker token={token} estates={estates} onInvite={(res) => {
               setInviteResult(res);
               if (res && res.code) toast.add('Invite code generated', 'success');
             }} />
+          </div>
+        )}
+        {activeTab==='caretakers' && isOwner(role) && (
+          <div className="card">
+            <ManageCaretakers token={token} estates={estates} />
           </div>
         )}
         {activeTab==='reminders' && (
@@ -1410,7 +1457,7 @@ function LandlordDashboard() {
               <div><strong>Email:</strong> {me?.email || me?.User?.email || '-'}</div>
               <div><strong>Role:</strong> {role}</div>
               <div><strong>Created:</strong> {me?.createdAt ? new Date(me.createdAt).toLocaleString() : '-'}</div>
-              {role==='caretaker' && (
+              {isPropertyManager(role) && (
                 <>
                   <div><strong>Apartment:</strong> {me?.Apartment?.number || me?.apartmentId || '-'}</div>
                   <div><strong>Estate:</strong> {me?.Apartment?.Estate?.name || '-'}</div>
@@ -1419,8 +1466,8 @@ function LandlordDashboard() {
             </div>
             <ProfileEditor role={role} token={token} me={me} onUpdated={async()=>{
               try {
-                if (role === 'landlord') setMe(await api('/api/landlords/me', { token }));
-                else if (role === 'caretaker') setMe(await api('/api/landlords/caretakers/me', { token }));
+                if (isOwner(role)) setMe(await api('/api/landlords/me', { token }));
+                else if (isPropertyManager(role)) setMe(await api('/api/landlords/caretakers/me', { token }));
               } catch {}
             }} />
           </div>
@@ -1516,7 +1563,15 @@ function CaretakerDashboard() {
         onChange={(id) => setActiveTab(id)}
       />
       <section className="content">
-        <h2 className="section-title compact">Welcome, {me?.name || 'Caretaker'}</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 20 }}>Hello, {me?.name || displayRole('caretaker')}</h2>
+            <div style={{ color: '#6b7280', fontSize: 13 }}>Property manager tools and tickets</div>
+          </div>
+          <div>
+            <button className="btn">Post Notice</button>
+          </div>
+        </div>
         <div className="kpis">
           <div className="kpi"><div className="kpi-label">Open</div><div className="kpi-value badge warn">{kpis.open}</div></div>
           <div className="kpi"><div className="kpi-label">In Progress</div><div className="kpi-value badge info">{kpis.inProgress}</div></div>
@@ -1719,8 +1774,8 @@ function ProfileEditor({ role, token, me, onUpdated }) {
     e.preventDefault();
     try {
       if (role === 'tenant') await api('/api/tenants/me', { method:'PATCH', token, body:{ name, phone, photoUrl } });
-      else if (role === 'landlord') await api('/api/landlords/me', { method:'PATCH', token, body:{ name, phone, photoUrl } });
-      else if (role === 'caretaker') await api('/api/landlords/caretakers/me', { method:'PATCH', token, body:{ name, phone, photoUrl } });
+      else if (isOwner(role)) await api('/api/landlords/me', { method:'PATCH', token, body:{ name, phone, photoUrl } });
+      else if (isPropertyManager(role)) await api('/api/landlords/caretakers/me', { method:'PATCH', token, body:{ name, phone, photoUrl } });
       toast.add('Profile updated', 'success');
       onUpdated && onUpdated();
     } catch (err) {
@@ -1844,7 +1899,7 @@ function Home() {
               </>
             ) : (
               <>
-                <Link className="btn" to={role==='tenant' ? '/tenant' : role==='landlord' ? '/landlord' : '/caretaker'} onClick={onCtaClick}>Go to Dashboard</Link>
+                <Link className="btn" to={role==='tenant' ? '/tenant' : isOwner(role) || isPropertyManager(role) ? '/landlord' : '/tenant'} onClick={onCtaClick}>Go to Dashboard</Link>
               </>
             )}
           </div>
@@ -1999,18 +2054,18 @@ function Register() {
     try {
       setLoading(true);
       if (!email.trim() || !password.trim()) throw new Error('Email and password are required');
-  if (role !== 'caretaker' && (!name.trim() || !idNumber.trim())) throw new Error('Name and ID number are required');
+  if (role !== 'property_manager' && (!name.trim() || !idNumber.trim())) throw new Error('Name and ID number are required');
   let body = { email, password, role };
-  if (role !== 'caretaker') { body.name = name; body.idNumber = idNumber; }
-      if (role === 'caretaker') {
-        if (!inviteCode.trim()) throw new Error('Invite code is required for caretakers');
+  if (role !== 'property_manager') { body.name = name; body.idNumber = idNumber; }
+      if (role === 'property_manager') {
+        if (!inviteCode.trim()) throw new Error('Invite code is required for property managers');
         body.inviteCode = inviteCode.trim();
       }
       const res = await api('/api/auth/register', { method:'POST', body });
       if (res?.token && res?.role) {
         login(res.token, res.role);
-        toast.add('Account created. You are now signed in.', 'success');
-  navigate(res.role === 'landlord' || res.role === 'caretaker' ? '/landlord' : '/tenant', { replace: true });
+          toast.add('Account created. You are now signed in.', 'success');
+        navigate(isOwner(res.role) || isPropertyManager(res.role) ? '/landlord' : '/tenant', { replace: true });
       } else {
         // Fallback if backend did not return token (should not happen with current backend)
         toast.add('Registered. Please sign in.', 'success');
@@ -2066,13 +2121,13 @@ function Register() {
           <label>Role</label>
           <select value={role} onChange={e=>setRole(e.target.value)} disabled={loading}>
             <option value="tenant">Tenant</option>
-            <option value="landlord">Landlord</option>
-            <option value="caretaker">Caretaker</option>
+            <option value="owner">Owner</option>
+            <option value="property_manager">Property Manager</option>
           </select>
-          {role === 'caretaker' && (
+          {role === 'property_manager' && (
             <>
               <label>Invite Code</label>
-              <input placeholder="Enter invite code from landlord" value={inviteCode} onChange={e=>setInviteCode(e.target.value)} disabled={loading} />
+              <input placeholder="Enter invite code from owner" value={inviteCode} onChange={e=>setInviteCode(e.target.value)} disabled={loading} />
             </>
           )}
           <button type="submit" className="btn full" disabled={loading}>
