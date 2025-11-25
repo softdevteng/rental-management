@@ -83,10 +83,10 @@ label{font-size:.9rem;opacity:.9}
 .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#04121d;border-radius:50%;animation:spin .8s linear infinite;margin-left:8px;vertical-align:middle}
 @keyframes spin{to{transform:rotate(360deg)}}
 /* landing hero */
-.hero{display:flex;align-items:center;justify-content:center;min-height:60vh;background:linear-gradient(135deg,#0b1020,#0f1a34)}
+.hero{display:flex;align-items:center;justify-content:center;min-height:calc(100vh - var(--header-height) - 80px);background:linear-gradient(135deg,#0b1020,#0f1a34)}
 :root[data-theme='light'] .hero{background:linear-gradient(135deg,#e6f7ff,#f4fbff)}
 .hero-content{text-align:center;max-width:720px;padding:24px}
-.hero-card{max-width:760px;margin:0 auto;text-align:center;padding:20px 24px;border:1px solid var(--border);border-radius:14px;background:linear-gradient(180deg, rgba(255,255,255,.02), transparent), var(--panel);box-shadow:0 30px 80px -40px rgba(2,6,23,.85), inset 0 1px 0 rgba(255,255,255,.03)}
+.hero-card{max-width:760px;width:100%;margin:0 auto;text-align:center;padding:20px 24px;border:1px solid var(--border);border-radius:14px;background:linear-gradient(180deg, rgba(255,255,255,.02), transparent), var(--panel);box-shadow:0 30px 80px -40px rgba(2,6,23,.85), inset 0 1px 0 rgba(255,255,255,.03)}
 .cta .btn + .btn{margin-left:0}
 .hero .subtitle{opacity:.9;margin-top:8px}
 .cta{margin-top:16px;display:flex;gap:12px;justify-content:center}
@@ -101,14 +101,14 @@ label{font-size:.9rem;opacity:.9}
 .error{color:#ff6b6b;font-size:.9rem;margin:4px 0}
 
 /* Auth pages */
-.auth-page{min-height:60vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.auth-page{min-height:calc(100vh - var(--header-height) - 80px);display:flex;align-items:center;justify-content:center;padding:24px}
 .auth-page.with-illustration{background: radial-gradient(900px 500px at 10% 10%, rgba(34,211,238,.08), transparent), radial-gradient(1000px 600px at 90% 0%, rgba(139,92,246,.08), transparent)}
-.auth-card{width:100%;max-width:420px;background:linear-gradient(180deg, rgba(255,255,255,.02), transparent), var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;box-shadow:0 20px 50px -30px rgba(2,6,23,.9)}
+.auth-card{width:100%;max-width:480px;background:linear-gradient(180deg, rgba(255,255,255,.02), transparent), var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;box-shadow:0 20px 50px -30px rgba(2,6,23,.9)}
 .auth-card{opacity:0;transform:translateY(10px);animation:authIn .4s ease forwards}
 @keyframes authIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .auth-title{margin:4px 0 6px}
 .auth-subtitle{margin:0 0 14px;color:var(--muted)}
-.auth-links{display:flex;gap:10px;align-items:center;justify-content:center;margin-top:10px}
+.auth-links{display:flex;gap:10px;align-items:center;justify-content:center;margin-top:10px;flex-wrap:wrap}
 .auth-links a{color:var(--accent);text-decoration:none}
 .auth-links .dot{opacity:.6}
 .btn.full{width:100%}
@@ -219,6 +219,19 @@ label{font-size:.9rem;opacity:.9}
 .dashboard.landlord .property-meta{display:flex;flex-direction:column}
 .dashboard.landlord .property-stats{display:flex;gap:10px;align-items:center}
 .dashboard.landlord .quick-actions{display:flex;gap:8px}
+
+/* Small responsive adjustments and centering polish */
+@media (max-width: 520px) {
+	.auth-card{padding:16px;box-shadow:none;border-radius:10px}
+	.auth-title{font-size:1.2rem}
+	.hero{padding:18px}
+}
+
+/* Ensure route container centers content when appropriate */
+.route-fade{display:flex;flex-direction:column;align-items:center}
+
+/* Make sure auth and hero areas account for the fixed header */
+.auth-page, .hero{padding-top:16px}
 .dashboard.landlord .card.card-appear{animation:none;opacity:1;transform:none}
 .dashboard.landlord .sidebar{width:300px}
 .dashboard.landlord .card .card-header{align-items:center}
