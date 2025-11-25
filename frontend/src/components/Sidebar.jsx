@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
 export default function Sidebar({ title, items = [], active, onChange }) {
-  // collapsed: keeps sidebar hidden by default
+  // collapsed: keeps sidebar hidden when true
   // isOpen: when collapsed, opening shows the overlay drawer
-  // Keep sidebar expanded when running tests/CI so tests that query items still work
+  // Default to expanded in development so sidebar items are visible by default.
+  // When running tests we still keep the sidebar expanded to avoid flakiness.
   const runningTests = (typeof process !== 'undefined' && process.env && (process.env.CI === 'true' || process.env.NODE_ENV === 'test'));
-  const [collapsed, setCollapsed] = useState(!runningTests);
+  const [collapsed, setCollapsed] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
   const open = () => {

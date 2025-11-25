@@ -172,6 +172,8 @@ label{font-size:.9rem;opacity:.9}
 }
 /* Sidebar: more distinct look */
 .sidebar{width:260px;flex-shrink:0;background:var(--panel);border:1.5px solid var(--accent);border-radius:14px;padding:14px;height:fit-content;position:sticky;top:calc(var(--header-height) + 12px);box-shadow:0 16px 36px -18px rgba(14,165,255,.25), inset 0 1px 0 rgba(255,255,255,.05)}
+:root .sidebar.collapsed{width:72px;padding:8px;border-radius:12px}
+:root .sidebar.collapsed .sidebar-section{display:none}
 :root[data-theme='light'] .sidebar{box-shadow:0 10px 24px -18px rgba(2,6,23,.2), inset 0 1px 0 rgba(255,255,255,.8)}
 .sidebar-title{font-weight:700;opacity:.9;margin:4px 0 8px}
 .sidebar-section{display:flex;flex-direction:column;gap:4px;margin-top:8px}
