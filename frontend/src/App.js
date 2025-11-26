@@ -1871,67 +1871,99 @@ function Home() {
     const t = setTimeout(() => {
       setFeaturesIn(true);
       try { sessionStorage.setItem('featuresAnimated', '1'); } catch {}
-    }, 100);
+    }, 120);
     return () => clearTimeout(t);
   }, []);
+
   const onCtaClick = (e) => {
     try {
       const el = e.currentTarget;
       el.classList.remove('btn-click');
-      // Force reflow to restart animation
-      // eslint-disable-next-line no-unused-expressions
-      el.offsetWidth;
+      el.offsetWidth; // restart animation
       el.classList.add('btn-click');
       setTimeout(() => el.classList.remove('btn-click'), 320);
     } catch {}
   };
+
   return (
     <div className="hero">
-      <section className="section">
-        <div className="hero-card">
-          <h2 style={{ margin: 0 }}>All-in-one rental management</h2>
-          <p className="subtitle">Collect rent, resolve repairs, and keep everyone in the loop — fast and simple.</p>
+      <section className="hero-grid">
+        <div className="hero-left">
+          <h1>Built for estate & rental managers</h1>
+          <p className="hero-lead">Manage properties, collect rent, coordinate repairs, and keep owners and tenants in sync — all from one clean dashboard.</p>
+
+          <ul className="hero-bullets">
+            <li><strong>Payments & reporting:</strong> Trusted workflows for rent collection and exportable financials.</li>
+            <li><strong>Maintenance & tickets:</strong> Streamlined repair requests with status updates and attachments.</li>
+            <li><strong>Owner-facing tools:</strong> Role-based access so owners and property managers see what matters.</li>
+          </ul>
+
           <div className="cta">
             {!token ? (
               <>
-                <Link className="btn" to="/signin" onClick={onCtaClick}>Sign In</Link>
-                <Link className="btn classic" to="/register" onClick={onCtaClick}>Create Account</Link>
+                <Link className="btn primary" to="/register" onClick={onCtaClick}>Get started — Create account</Link>
+                <Link className="btn classic" to="/signin" onClick={onCtaClick}>Sign in</Link>
               </>
             ) : (
-              <>
-                <Link className="btn" to={role==='tenant' ? '/tenant' : isOwner(role) || isPropertyManager(role) ? '/landlord' : '/tenant'} onClick={onCtaClick}>Go to Dashboard</Link>
-              </>
+              <Link className="btn primary" to={role==='tenant' ? '/tenant' : isOwner(role) || isPropertyManager(role) ? '/landlord' : '/tenant'} onClick={onCtaClick}>Open dashboard</Link>
             )}
           </div>
+
+          <p className="hero-note">Free trial available • No credit card required</p>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:16, marginTop:16 }}>
-          <div className={`feature ${featuresIn ? 'animated-in' : 'animated'}`}>
-            <div className="icon" aria-hidden>
-              <svg viewBox="0 0 24 24" fill="none"><path d="M3 7h18M3 12h18M3 17h18" stroke="#5bc0be" strokeWidth="1.5"/></svg>
-            </div>
-            <h3>Collect rent faster</h3>
-            <p>Track payments and export reports in one place.</p>
+
+        <div className="hero-right">
+          <div className="mockup">
+            <svg viewBox="0 0 800 520" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+              <defs>
+                <linearGradient id="g" x1="0" x2="1">
+                  <stop offset="0" stopColor="#5bc0be" stopOpacity=".9" />
+                  <stop offset="1" stopColor="#2b6cb0" stopOpacity=".9" />
+                </linearGradient>
+              </defs>
+              <rect x="24" y="24" rx="16" width="752" height="472" fill="#0f1724" stroke="url(#g)" strokeWidth="2" />
+              <rect x="56" y="72" width="688" height="36" rx="6" fill="#0b1220" />
+              <rect x="56" y="120" width="420" height="300" rx="8" fill="#081226" />
+              <rect x="496" y="120" width="248" height="300" rx="8" fill="#081226" />
+            </svg>
           </div>
-          <div className={`feature ${featuresIn ? 'animated-in delay1' : 'animated'}`}>
-            <div className="icon" aria-hidden>
-              <svg viewBox="0 0 24 24" fill="none"><path d="M7 7h10v10H7z" stroke="#5bc0be" strokeWidth="1.5"/><path d="M9 12h6" stroke="#5bc0be" strokeWidth="1.5"/></svg>
+        </div>
+      </section>
+
+      <section className="features section">
+        <div className="section-inner">
+          <h2>Everything an estate manager needs</h2>
+          <p className="subtitle">Designed around common workflows — from onboarding new tenants to owner reporting.</p>
+
+          <div className="features-grid">
+            <div className={`feature ${featuresIn ? 'animated-in' : 'animated'}`}>
+              <div className="icon" aria-hidden>
+                <svg viewBox="0 0 24 24" fill="none"><path d="M3 7h18M3 12h18M3 17h18" stroke="#5bc0be" strokeWidth="1.5"/></svg>
+              </div>
+              <h3>Payments & statements</h3>
+              <p>Automated reminders, receipts, and exportable statements for owners.</p>
             </div>
-            <h3>Fix issues quickly</h3>
-            <p>Tickets move from open to done with clear updates.</p>
-          </div>
-          <div className={`feature ${featuresIn ? 'animated-in delay2' : 'animated'}`}>
-            <div className="icon" aria-hidden>
-              <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#5bc0be" strokeWidth="1.5"/><path d="M12 7v5l3 3" stroke="#5bc0be" strokeWidth="1.5"/></svg>
+            <div className={`feature ${featuresIn ? 'animated-in delay1' : 'animated'}`}>
+              <div className="icon" aria-hidden>
+                <svg viewBox="0 0 24 24" fill="none"><path d="M7 7h10v10H7z" stroke="#5bc0be" strokeWidth="1.5"/><path d="M9 12h6" stroke="#5bc0be" strokeWidth="1.5"/></svg>
+              </div>
+              <h3>Maintenance & tickets</h3>
+              <p>Clear workflows with status updates, photos and assignment for repairs.</p>
             </div>
-            <h3>Save time every day</h3>
-            <p>Smart defaults help you get work done faster.</p>
-          </div>
-          <div className={`feature ${featuresIn ? 'animated-in delay3' : 'animated'}`}>
-            <div className="icon" aria-hidden>
-              <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16v10H4z" stroke="#5bc0be" strokeWidth="1.5"/><path d="M8 12h8" stroke="#5bc0be" strokeWidth="1.5"/></svg>
+            <div className={`feature ${featuresIn ? 'animated-in delay2' : 'animated'}`}>
+              <div className="icon" aria-hidden>
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#5bc0be" strokeWidth="1.5"/><path d="M12 7v5l3 3" stroke="#5bc0be" strokeWidth="1.5"/></svg>
+              </div>
+              <h3>Owner visibility</h3>
+              <p>Share curated reports and let owners see only the info they need.</p>
             </div>
-            <h3>Stay in sync</h3>
-            <p>Notices and updates keep everyone informed in real time.</p>
+            <div className={`feature ${featuresIn ? 'animated-in delay3' : 'animated'}`}>
+              <div className="icon" aria-hidden>
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16v10H4z" stroke="#5bc0be" strokeWidth="1.5"/><path d="M8 12h8" stroke="#5bc0be" strokeWidth="1.5"/></svg>
+              </div>
+              <h3>Team & access control</h3>
+              <p>Assign property managers and caretakers with role-specific access.</p>
+            </div>
           </div>
         </div>
       </section>

@@ -100,6 +100,33 @@ label{font-size:.9rem;opacity:.9}
 .btn-secondary{background:linear-gradient(135deg,var(--accent-2),#0284c7);color:#04121d}
 .error{color:#ff6b6b;font-size:.9rem;margin:4px 0}
 
+/* New hero grid for estate-manager landing */
+.hero-grid{display:grid;grid-template-columns:1fr 480px;gap:28px;align-items:center;width:100%;max-width:1200px;padding:28px}
+.hero-left{color:var(--text)}
+.hero-left h1{font-size:2.1rem;margin:0 0 12px;color:var(--text)}
+.hero-lead{color:var(--muted);font-size:1.05rem;margin:0 0 18px}
+.hero-bullets{list-style:none;padding:0;margin:0 0 18px;display:grid;gap:10px}
+.hero-bullets li{background:linear-gradient(180deg, rgba(255,255,255,.02), transparent);padding:10px 12px;border-radius:10px;border:1px solid var(--border)}
+.hero-note{margin-top:12px;color:var(--muted);font-size:.9rem}
+
+.hero-right .mockup{background:transparent;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.hero-right .mockup svg{width:100%;height:auto;display:block}
+
+.features.section{padding-top:6px;padding-bottom:48px}
+.section-inner{max-width:1100px;margin:0 auto;text-align:center}
+.section-inner h2{margin:0 0 8px}
+.section-inner .subtitle{margin:0 0 18px;color:var(--muted)}
+
+/* Responsive adjustments */
+@media (max-width: 980px) {
+	.hero-grid{grid-template-columns:1fr 360px;padding:20px}
+}
+@media (max-width: 760px) {
+	.hero-grid{grid-template-columns:1fr;padding:18px}
+	.hero-right{order: -1;margin-bottom:16px}
+	.hero-left h1{font-size:1.5rem}
+}
+
 /* Auth pages */
 .auth-page{min-height:calc(100vh - var(--header-height) - 80px);display:flex;align-items:center;justify-content:center;padding:24px}
 .auth-page.with-illustration{background: radial-gradient(900px 500px at 10% 10%, rgba(34,211,238,.08), transparent), radial-gradient(1000px 600px at 90% 0%, rgba(139,92,246,.08), transparent)}
