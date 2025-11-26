@@ -1,7 +1,10 @@
 const { Sequelize, DataTypes } = require('sequelize');
 
 // Support in-memory sqlite for tests (set NODE_ENV=test or USE_SQLITE_IN_MEMORY=true)
-const useSqlite = String(process.env.USE_SQLITE_IN_MEMORY || '').toLowerCase() === 'true' || process.env.NODE_ENV === 'test';
+// Allow forcing MySQL in CI by setting FORCE_MYSQL=true. This lets CI run tests
+// against a real MySQL service even though Jest sets NODE_ENV=test locally.
+const forceMysql = String(process.env.FORCE_MYSQL || '').toLowerCase() === 'true';
+const useSqlite = !forceMysql && (String(process.env.USE_SQLITE_IN_MEMORY || '').toLowerCase() === 'true' || process.env.NODE_ENV === 'test');
 let sequelize;
 if (useSqlite) {
   sequelize = new Sequelize({ dialect: 'sqlite', storage: ':memory:', logging: false });
@@ -23,7 +26,8 @@ if (useSqlite) {
 const User = sequelize.define('User', {
   email: { type: DataTypes.STRING, unique: true, allowNull: false },
   password: { type: DataTypes.STRING, allowNull: false },
-  role: { type: DataTypes.ENUM('tenant','landlord','caretaker'), allowNull: false },
+  // support both legacy role names and new display names (owner/property_manager)
+  role: { type: DataTypes.ENUM('tenant','landlord','caretaker','owner','property_manager'), allowNull: false },
   refId: { type: DataTypes.INTEGER, allowNull: true },
   passwordResetToken: { type: DataTypes.STRING },
   passwordResetExpires: { type: DataTypes.DATE },
@@ -33,6 +37,7 @@ const Tenant = sequelize.define('Tenant', {
   name: DataTypes.STRING,
   idNumber: DataTypes.STRING,
   email: { type: DataTypes.STRING, unique: true },
+  tenantCode: { type: DataTypes.STRING, unique: true },
   password: DataTypes.STRING,
   phone: DataTypes.STRING,
   photoUrl: DataTypes.STRING,
@@ -98,6 +103,25 @@ const Notice = sequelize.define('Notice', {
   createdAt: { type: DataTypes.DATE, defaultValue: Sequelize.NOW },
 });
 
+// Historical occupancy snapshots to track occupied/vacant state over time
+const OccupancyHistory = sequelize.define('OccupancyHistory', {
+  apartmentId: DataTypes.INTEGER,
+  estateId: DataTypes.INTEGER,
+  tenantId: DataTypes.INTEGER,
+  status: { type: DataTypes.ENUM('occupied','vacant'), defaultValue: 'vacant' },
+  recordedAt: { type: DataTypes.DATE, defaultValue: Sequelize.NOW },
+});
+
+// Expenses (operational costs, repairs, utilities etc.)
+const Expense = sequelize.define('Expense', {
+  amount: DataTypes.DECIMAL(10,2),
+  date: DataTypes.DATE,
+  category: DataTypes.STRING,
+  notes: DataTypes.TEXT,
+  estateId: DataTypes.INTEGER,
+  landlordId: DataTypes.INTEGER,
+});
+
 // Caretaker invite codes created by landlord
 const CaretakerInvite = sequelize.define('CaretakerInvite', {
   code: { type: DataTypes.STRING, unique: true },
@@ -140,6 +164,47 @@ Estate.hasMany(Caretaker, { foreignKey: 'estateId' });
 Caretaker.belongsTo(Apartment, { foreignKey: 'apartmentId' });
 Apartment.hasMany(Caretaker, { foreignKey: 'apartmentId' });
 
+// Expense associations
+Estate.hasMany(Expense, { foreignKey: 'estateId' });
+Expense.belongsTo(Estate, { foreignKey: 'estateId' });
+Landlord.hasMany(Expense, { foreignKey: 'landlordId' });
+Expense.belongsTo(Landlord, { foreignKey: 'landlordId' });
+
+// Occupancy history associations
+Apartment.hasMany(OccupancyHistory, { foreignKey: 'apartmentId' });
+OccupancyHistory.belongsTo(Apartment, { foreignKey: 'apartmentId' });
+Estate.hasMany(OccupancyHistory, { foreignKey: 'estateId' });
+OccupancyHistory.belongsTo(Estate, { foreignKey: 'estateId' });
+Tenant.hasMany(OccupancyHistory, { foreignKey: 'tenantId' });
+OccupancyHistory.belongsTo(Tenant, { foreignKey: 'tenantId' });
+
+// Hook: when an apartment's tenant assignment changes, create an occupancy snapshot
+Apartment.addHook('afterUpdate', async (apartment, options) => {
+  try {
+    // previous() is available on instances to check prior value
+    const prevTenant = apartment.previous('tenantId');
+    const newTenant = apartment.tenantId;
+    if (prevTenant === newTenant) return;
+
+    const status = newTenant ? 'occupied' : 'vacant';
+    // create a snapshot record; prefer transaction if provided
+    const createOpts = {};
+    if (options && options.transaction) createOpts.transaction = options.transaction;
+
+    await OccupancyHistory.create({
+      apartmentId: apartment.id,
+      estateId: apartment.estateId,
+      tenantId: newTenant || null,
+      status,
+      recordedAt: new Date(),
+    }, createOpts);
+  } catch (err) {
+    // Don't throw; occupancy history is optional. Log for diagnostics.
+    // eslint-disable-next-line no-console
+    console.warn('Failed to write OccupancyHistory snapshot:', err && err.message ? err.message : err);
+  }
+});
+
 let connected = false;
 async function connectAndSync() {
   await sequelize.authenticate();
@@ -153,7 +218,7 @@ module.exports = {
   sequelize,
   Sequelize,
   DataTypes,
-  models: { User, Tenant, Landlord, Estate, Apartment, Ticket, Payment, Notice, Caretaker, CaretakerInvite },
+  models: { User, Tenant, Landlord, Estate, Apartment, Ticket, Payment, Notice, Caretaker, CaretakerInvite, Expense, OccupancyHistory },
   connectAndSync,
   dbHealth,
 };

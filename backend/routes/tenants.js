@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { models } = require('../db');
 const auth = require('../middleware/auth');
+const roles = require('../utils/roles');
 
 // Get tenant profile
 router.get('/me', auth, async (req, res) => {
-  if (req.user.role !== 'tenant') return res.status(403).json({ error: 'Forbidden' });
+  if (!roles.isTenant(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
   const tenant = await models.Tenant.findByPk(req.user.refId, {
     include: [{ model: models.Apartment, include: [models.Estate] }, { model: models.Payment }, { model: models.Ticket }]
   });
@@ -14,7 +15,7 @@ router.get('/me', auth, async (req, res) => {
 
 // Update tenant profile
 router.patch('/me', auth, async (req, res) => {
-  if (req.user.role !== 'tenant') return res.status(403).json({ error: 'Forbidden' });
+  if (!roles.isTenant(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
   const tenant = await models.Tenant.findByPk(req.user.refId);
   if (!tenant) return res.status(404).json({ error: 'Not found' });
   const { name, phone, photoUrl } = req.body;
@@ -28,14 +29,14 @@ router.patch('/me', auth, async (req, res) => {
 
 // View payment history
 router.get('/payments', auth, async (req, res) => {
-  if (req.user.role !== 'tenant') return res.status(403).json({ error: 'Forbidden' });
+  if (!roles.isTenant(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
   const payments = await models.Payment.findAll({ where: { tenantId: req.user.refId } });
   res.json(payments);
 });
 
 // List own tickets
 router.get('/tickets', auth, async (req, res) => {
-  if (req.user.role !== 'tenant') return res.status(403).json({ error: 'Forbidden' });
+  if (!roles.isTenant(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
   const tickets = await models.Ticket.findAll({ where: { tenantId: req.user.refId }, include: [models.Apartment] });
   res.json(tickets);
 });

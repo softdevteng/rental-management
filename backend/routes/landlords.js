@@ -3,6 +3,8 @@ const router = express.Router();
 const { models, Sequelize } = require('../db');
 const auth = require('../middleware/auth');
 const axios = require('axios');
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 // Helpers for M-Pesa Daraja
 function normalizeMsisdn(phone) {
@@ -159,6 +161,20 @@ router.post('/estates/:id/assign-caretaker', auth, async (req, res) => {
   res.json(caretaker);
 });
 
+// Assign caretaker to a specific apartment (landlord)
+router.post('/apartments/:id/assign-caretaker', auth, async (req, res) => {
+  if (req.user.role !== 'landlord') return res.status(403).json({ error: 'Forbidden' });
+  const { caretakerId } = req.body;
+  const apt = await models.Apartment.findByPk(req.params.id);
+  if (!apt) return res.status(404).json({ error: 'Apartment not found' });
+  const est = await models.Estate.findByPk(apt.estateId);
+  if (!est || String(est.landlordId) !== String(req.user.refId)) return res.status(403).json({ error: 'Not your apartment' });
+  const caretaker = await models.Caretaker.findByPk(caretakerId);
+  if (!caretaker) return res.status(404).json({ error: 'Caretaker not found' });
+  await caretaker.update({ apartmentId: apt.id, estateId: apt.estateId });
+  res.json(caretaker);
+});
+
 // Delete caretaker (landlord)
 router.delete('/caretakers/:id', auth, async (req, res) => {
   if (req.user.role !== 'landlord') return res.status(403).json({ error: 'Forbidden' });
@@ -166,6 +182,73 @@ router.delete('/caretakers/:id', auth, async (req, res) => {
   if (!caretaker) return res.status(404).json({ error: 'Not found' });
   await caretaker.destroy();
   res.json({ message: 'Caretaker deleted' });
+});
+
+// List caretakers for the landlord (landlord)
+router.get('/caretakers', auth, async (req, res) => {
+  if (req.user.role !== 'landlord') return res.status(403).json({ error: 'Forbidden' });
+  // Find estates belonging to landlord
+  const estates = await models.Estate.findAll({ where: { landlordId: req.user.refId }, attributes: ['id'] });
+  const estateIds = estates.map(e => e.id);
+  // Find apartments within these estates
+  const apartments = estateIds.length ? await models.Apartment.findAll({ where: { estateId: estateIds }, attributes: ['id'] }) : [];
+  const aptIds = apartments.map(a => a.id);
+  const { Op } = require('sequelize');
+  const or = [];
+  if (estateIds.length) or.push({ estateId: { [Op.in]: estateIds } });
+  if (aptIds.length) or.push({ apartmentId: { [Op.in]: aptIds } });
+  const caretakers = or.length ? await models.Caretaker.findAll({ where: { [Op.or]: or }, include: [models.Estate, models.Apartment] }) : [];
+  res.json(caretakers);
+});
+
+// Landlord: create a caretaker profile (no user account yet) and optionally assign to estate/apartment
+router.post('/caretakers', auth, async (req, res) => {
+  if (req.user.role !== 'landlord') return res.status(403).json({ error: 'Forbidden' });
+  const { name, email, idNumber, phone, estateId, apartmentId } = req.body || {};
+  const { createUser, returnCredentials } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'email required' });
+  // verify estate/apartment belong to landlord when provided
+  if (estateId) {
+    const est = await models.Estate.findByPk(estateId);
+    if (!est || String(est.landlordId) !== String(req.user.refId)) return res.status(403).json({ error: 'Not your estate' });
+  }
+  if (apartmentId) {
+    const apt = await models.Apartment.findByPk(apartmentId);
+    if (!apt) return res.status(404).json({ error: 'Apartment not found' });
+    const est = await models.Estate.findByPk(apt.estateId);
+    if (!est || String(est.landlordId) !== String(req.user.refId)) return res.status(403).json({ error: 'Not your apartment' });
+  }
+  const existing = await models.Caretaker.findOne({ where: { email } });
+  if (existing) return res.status(409).json({ error: 'Caretaker with this email already exists', caretaker: existing });
+  const c = await models.Caretaker.create({ name, email, idNumber: idNumber || null, phone: phone || null, estateId: estateId || null, apartmentId: apartmentId || null });
+  // If owner requested a user account for this property manager, create it with a one-time setup token.
+  const allowPlainEnv = String(process.env.ALLOW_RETURN_PLAINTEXT_CREDENTIALS || '').toLowerCase() === 'true';
+  if (createUser) {
+    const existingUser = await models.User.findOne({ where: { email } });
+    if (existingUser) return res.status(409).json({ error: 'User with this email already exists' });
+
+    // generate a one-time setup token and set a short expiry (24h)
+    const setupToken = crypto.randomBytes(20).toString('hex');
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
+
+    // create user with a random hashed password and attach the reset token so the manager can set their password
+    const placeholderPw = crypto.randomBytes(8).toString('hex');
+    const hashed = await bcrypt.hash(placeholderPw, 10);
+    const user = await models.User.create({ email, password: hashed, role: 'caretaker', refId: c.id, passwordResetToken: setupToken, passwordResetExpires: expiresAt });
+
+    // Build a setup URL for convenience (frontend will provide a reset UI).
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const setupUrl = `${frontendUrl}/reset-password?token=${setupToken}&email=${encodeURIComponent(email)}`;
+
+    // Return the setup URL/token only when explicitly requested (dev opt-in) to avoid leaks in production.
+    if (allowPlainEnv && returnCredentials) {
+      return res.status(201).json({ created: true, caretaker: c, setup: { token: setupToken, url: setupUrl, expiresAt } });
+    }
+
+    return res.status(201).json({ created: true, caretaker: c, note: 'User account created. Instruct the property manager to set their password via the reset flow.' });
+  }
+
+  res.status(201).json(c);
 });
 
 // Caretaker profile
@@ -291,14 +374,11 @@ router.post('/apartments/:id/assign-tenant', auth, async (req, res) => {
   res.json(apt);
 });
 
-// Generate caretaker invite code (landlord only)
+// Deprecated: caretaker invite route
 router.post('/caretakers/invite', auth, async (req, res) => {
-  if (req.user.role !== 'landlord') return res.status(403).json({ error: 'Forbidden' });
-  const { estateId, apartmentId } = req.body;
-  const code = Math.random().toString(36).slice(2, 8).toUpperCase();
-  const expiresAt = new Date(Date.now() + 1000*60*60*24); // 24h
-  const invite = await models.CaretakerInvite.create({ code, expiresAt, landlordId: req.user.refId, estateId: estateId || null, apartmentId: apartmentId || null });
-  res.status(201).json({ code: invite.code, expiresAt: invite.expiresAt, estateId: invite.estateId, apartmentId: invite.apartmentId });
+  // This endpoint is deprecated. Owners should create property manager profiles directly
+  // via POST /caretakers and may request user account creation using `createUser: true`.
+  return res.status(410).json({ error: 'Deprecated. Use POST /api/landlords/caretakers with createUser flag to create property managers.' });
 });
 
 // List tenants with apartments and basic payment status (landlord only)
@@ -311,6 +391,51 @@ router.get('/tenants', auth, async (req, res) => {
     ],
   });
   res.json(tenants);
+});
+
+// Generate a unique tenant code for an apartment (landlord only)
+router.post('/tenants/generate-code', auth, async (req, res) => {
+  if (req.user.role !== 'landlord') return res.status(403).json({ error: 'Forbidden' });
+  const { apartmentId } = req.body || {};
+  if (!apartmentId) return res.status(400).json({ error: 'apartmentId required' });
+  const apt = await models.Apartment.findByPk(apartmentId, { include: [models.Estate] });
+  if (!apt) return res.status(404).json({ error: 'Apartment not found' });
+  // ensure landlord owns the estate
+  const est = await models.Estate.findByPk(apt.estateId);
+  if (!est || String(est.landlordId) !== String(req.user.refId)) return res.status(403).json({ error: 'Not your apartment' });
+
+  // Compute prefix similar to client makeTenantCode
+  const base = String(apt.number || apt.name || '').trim();
+  const words = base.split(/\s+/).filter(Boolean);
+  let prefix = '';
+  if (words.length === 0) prefix = (String(base).slice(0,2) || 'TN').toUpperCase();
+  else if (words.length === 1) prefix = (words[0].slice(0,2)).toUpperCase();
+  else prefix = (words[0][0] + words[1][0]).toUpperCase();
+
+  // Find existing tenant codes starting with prefix and compute next sequence
+  // Use a transaction to reduce race window
+  const sequelize = require('../db').sequelize;
+  try {
+    const next = await sequelize.transaction(async (tx) => {
+      const { QueryTypes } = require('sequelize');
+      // Count tenant codes starting with prefix
+      const rows = await sequelize.query(
+        "SELECT tenantCode FROM Tenants WHERE tenantCode LIKE :p",
+        { replacements: { p: `${prefix}%` }, type: QueryTypes.SELECT, transaction: tx }
+      );
+      const seq = (rows || []).length + 1;
+      const code = `${prefix}${String(seq).padStart(3, '0')}`;
+      // Ensure uniqueness - if exists, bump until free (rare)
+      let final = code; let i = seq;
+      const existing = new Set((rows||[]).map(r => String(r.tenantCode || '')));
+      while (existing.has(final)) { i++; final = `${prefix}${String(i).padStart(3,'0')}`; }
+      return final;
+    });
+    res.json({ tenantCode: next });
+  } catch (err) {
+    console.error('generate-code error', err);
+    res.status(500).json({ error: 'Could not generate tenant code' });
+  }
 });
 
 // Create tenant (landlord only) - minimal fields

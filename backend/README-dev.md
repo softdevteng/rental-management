@@ -19,3 +19,14 @@ Notes
 cd backend
 npm test
 ```
+
+Migration (Expense table)
+
+If you're running against a MySQL database (CI or production), create the Expense table before running the app or tests against MySQL by running:
+
+```powershell
+cd backend
+npm run migrate
+```
+
+The migration script is idempotent and will skip creation if the table already exists. The project currently uses `sequelize.sync({ alter: true })` in development/testing, but this script is handy when running tests against an external MySQL instance or for initial manual provisioning.

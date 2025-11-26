@@ -2,7 +2,7 @@ export const API_URL = '';
 
 export async function api(path, { method = 'GET', body, token, isMultipart } = {}) {
   const headers = {};
-const BASE = process.env.REACT_APP_API_BASE || '';
+const BASE = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_BASE) || '';
   if (!isMultipart) headers['Content-Type'] = 'application/json';
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const url = BASE ? (path.startsWith('http') ? path : `${BASE}${path}`) : path;

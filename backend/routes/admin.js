@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { sequelize, models } = require('../db');
 const auth = require('../middleware/auth');
+const roles = require('../utils/roles');
 
 // Export DB content (JSON backup) - landlord only
 router.get('/backup', auth, async (req, res) => {
-  if (req.user.role !== 'landlord') return res.status(403).json({ error: 'Forbidden' });
+  if (!roles.isOwner(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
   const payload = {};
   for (const [name, model] of Object.entries(models)) {
     try {
@@ -21,7 +22,7 @@ router.get('/backup', auth, async (req, res) => {
 // Restore DB content from JSON (DANGEROUS) - landlord only
 // Requires confirm=true query param to proceed
 router.post('/restore', auth, async (req, res) => {
-  if (req.user.role !== 'landlord') return res.status(403).json({ error: 'Forbidden' });
+  if (!roles.isOwner(req.user.role)) return res.status(403).json({ error: 'Forbidden' });
   if (req.query.confirm !== 'true') return res.status(400).json({ error: 'Confirmation required: ?confirm=true' });
   const data = req.body;
   if (!data || typeof data !== 'object') return res.status(400).json({ error: 'Invalid payload' });

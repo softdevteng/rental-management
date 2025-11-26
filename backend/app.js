@@ -23,6 +23,7 @@ function createApp() {
   app.use('/api/auth', require('./routes/auth'));
   app.use('/api/tenants', require('./routes/tenants'));
   app.use('/api/landlords', require('./routes/landlords'));
+  app.use('/api/expenses', require('./routes/expenses'));
   app.use('/api/payments', require('./routes/payments'));
   app.use('/api/reports', require('./routes/reports'));
   app.use('/api/tickets', require('./routes/tickets'));

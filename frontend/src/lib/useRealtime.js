@@ -18,7 +18,7 @@ export function useRealtime(token, handlers = {}) {
     const connectSocket = async () => {
       try {
         const { io } = await import('socket.io-client');
-        const base = process.env.REACT_APP_API_BASE || '';
+        const base = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_BASE) || '';
         const url = base ? base.replace(/\/$/, '') : '';
         socket = io(url || undefined, { auth: { token } });
         socketRef.current = socket;
@@ -38,7 +38,7 @@ export function useRealtime(token, handlers = {}) {
 
     const tryInitSSE = () => {
       try {
-        const base = process.env.REACT_APP_API_BASE || '';
+        const base = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_BASE) || '';
         const url = base ? (base.replace(/\/$/, '') + '/api/payments/stream') : '/api/payments/stream';
         es = new EventSource(url);
         esRef.current = es;
