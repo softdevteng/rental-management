@@ -74,7 +74,8 @@ export default function Layout({ children }) {
               <path d="M9 20v-6h6v6" stroke="var(--accent)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </span>
-          Rental Manager
+          <span className="brand-initials" aria-hidden>DT</span>
+          DANTECH Property Manager
         </h1>
         <nav className="nav" style={{ display:'flex', alignItems:'center', gap:12 }}>
           <Link to="/">Home</Link>
@@ -121,7 +122,7 @@ export default function Layout({ children }) {
         </nav>
       </header>
       <main className="main">{children}</main>
-      <footer className="footer">© {new Date().getFullYear()} Rental Management System</footer>
+      <footer className="footer">© {new Date().getFullYear()} DANTECH Property Manager</footer>
     </div>
   );
 }
