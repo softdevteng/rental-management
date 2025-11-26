@@ -59,16 +59,36 @@ export default function Sidebar({ title, items = [], active, onChange }) {
     <>
       <aside className={`sidebar ${!collapsed ? 'expanded' : 'collapsed'}`} aria-label={title || 'Sidebar'}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px' }}>
-          <button aria-label="Toggle sidebar" title={collapsed ? 'Open sidebar' : 'Collapse sidebar'} onClick={() => {
-            // User initiated toggle: either open the drawer (when collapsed)
-            // or collapse the sidebar (when expanded) and persist preference.
-            if (collapsed) {
-              setIsOpen(true);
-            } else {
-              setCollapsed(true);
-              persistCollapsed(true, true);
-            }
-          }} className="btn classic" style={{ padding: 6, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button aria-label="Toggle sidebar" title={collapsed ? 'Open sidebar' : 'Collapse sidebar'} onClick={() => {
+              // User initiated toggle: either open the drawer (when collapsed)
+              // or collapse the sidebar (when expanded) and persist preference.
+              if (collapsed) {
+                setIsOpen(true);
+              } else {
+                setCollapsed(true);
+                persistCollapsed(true, true);
+              }
+            }} className="btn classic" style={{ padding: 6, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {/* hamburger */}
+              <svg width="18" height="14" viewBox="0 0 18 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                <rect x="0" y="1" width="18" height="2" rx="1" fill="currentColor" />
+                <rect x="0" y="6" width="18" height="2" rx="1" fill="currentColor" />
+                <rect x="0" y="11" width="18" height="2" rx="1" fill="currentColor" />
+              </svg>
+              {!collapsed && <strong style={{ fontSize: 13 }}>{title}</strong>}
+            </button>
+
+            {/* Explicit persist toggle: expands and persists expanded preference */}
+            <button aria-label="Expand sidebar" title="Always expand sidebar" onClick={() => {
+              setCollapsed(false);
+              persistCollapsed(false, true);
+            }} className="btn classic" style={{ padding: 6, display: 'inline-flex', alignItems: 'center' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                <path d="M4 12h16M12 4v16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
             {/* hamburger */}
             <svg width="18" height="14" viewBox="0 0 18 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
               <rect x="0" y="1" width="18" height="2" rx="1" fill="currentColor" />
